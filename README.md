@@ -1,3 +1,4 @@
+[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/wtyFW8Ul)
 # Final Capstone Project — AI Consulting Team
 
 ## Project Structure
@@ -164,7 +165,7 @@ No manual steps. No "you need to run this notebook first." No "change this path.
 
 | Role | Name | GitHub Username |
 |------|------|-----------------|
-| Data Engineering Lead | | |
+| Data Engineering Lead | | | Anthony Howell
 | ML / DNN Lead | | |
 | CNN Lead | | |
 | NLP Lead | | |
