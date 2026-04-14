@@ -9,6 +9,7 @@ Output: test_data/model3_results.csv
 """
 import pandas as pd
 from pathlib import Path
+import tensorflow as tf
 
 # Paths
 MODEL_PATH = Path("models/model3_cnn/saved_model/")
@@ -24,7 +25,8 @@ def load_model():
         model = tf.keras.models.load_model(MODEL_PATH / "model.keras")
     """
     # TODO: Load your saved model
-    raise NotImplementedError("Load your trained model here")
+    model = tf.keras.models.load_model(MODEL_PATH / "baseline_cnn_model.keras")
+    raise NotImplementedError(model)
 
 
 def load_and_preprocess_images(image_dir):
