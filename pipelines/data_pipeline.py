@@ -59,10 +59,14 @@ def clean_data(df):
 
     df = df.copy()
 
-    # 1. Replace '?' with NaN across the dataframe
+    #drop duplicates
+    if 'encounter_id' in df.columns:
+        df = df.drop_duplicates(subset=['encounter_id'])
+
+    #Replace '?' with NaN across the dataframe
     df = df.replace('?', np.nan)
 
-    # 2. Convert age brackets to numeric midpoint
+    #Convert age brackets to numeric midpoint
     age_map = {
         '[0-10)': 5, '[10-20)': 15, '[20-30)': 25,
         '[30-40)': 35, '[40-50)': 45, '[50-60)': 55,
@@ -72,14 +76,14 @@ def clean_data(df):
     if 'age' in df.columns:
         df['age_numeric'] = df['age'].map(age_map)
 
-    # 3. Exclude death/hospice discharges BEFORE target creation
+    #Exclude death/hospice discharges before creating readmission target
     exclude_dispositions = [11, 13, 14, 19, 20, 21]
     if 'discharge_disposition_id' in df.columns:
         df = df[
             ~df['discharge_disposition_id'].isin(exclude_dispositions)
         ].copy()
 
-    # 4. Create diagnosis category columns for later use
+    #Create diagnosis category columns
     diag_cols = ['diag_1', 'diag_2', 'diag_3']
 
     for col in diag_cols:
@@ -134,11 +138,13 @@ def engineer_features(df):
 
     df = df.copy()
 
-    # 1. Create binary readmission target
+
+
+    #Create binary readmission target
     if 'readmitted' in df.columns:
         df['readmission_binary'] = (df['readmitted'] != 'NO').astype(int)
 
-    # 2. Medication-derived features MUST happen before medication encoding
+    #Medication-derived features MUST happen before medication encoding
     med_cols_all = [
         'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
         'glimepiride', 'acetohexamide', 'glipizide', 'glyburide',
@@ -151,17 +157,14 @@ def engineer_features(df):
     med_cols_all = [c for c in med_cols_all if c in df.columns]
 
     if med_cols_all:
-        # Count medications that are active (anything not "No")
+        # Count medications that are active
         df['num_active_meds'] = (df[med_cols_all] != 'No').sum(axis=1)
 
-        # Count medications changed (same logic as your original intent)
+        #count how many meds were changed
         df['n_meds_changed'] = df[med_cols_all].apply(
-            lambda row: sum(1 for v in row if v != 'No'),
+            lambda row: sum(1 for v in row if v in ['Up', 'Down']),
             axis=1
         )
-
-        # Binary flag for any medication change
-        df['any_med_changed'] = (df['n_meds_changed'] > 0).astype(int)
 
         # Count medications increased
         df['n_meds_increased'] = df[med_cols_all].apply(
@@ -169,7 +172,7 @@ def engineer_features(df):
             axis=1
         )
 
-    # 3. Clinical complexity score
+    #Clinical complexity score
     complexity_parts = {
         'num_lab_procedures': 50,
         'num_procedures': 6,
@@ -185,34 +188,51 @@ def engineer_features(df):
             for col, divisor in complexity_parts.items()
         )
 
-    # 4. Race: drop missing and Other, then one-hot encode
+    #ordinal encode max glu and a1c, and create a tested column for each as well
+    if 'max_glu_serum' in df.columns:
+        df['max_glu_serum_tested'] = df['max_glu_serum'].notna().astype(int)
+        df['max_glu_serum'] = df['max_glu_serum'].map({
+            'Norm': 0,
+            '>200': 1,
+            '>300': 2
+        }).fillna(-1)
+
+    if 'A1Cresult' in df.columns:
+        df['A1Cresult_tested'] = df['A1Cresult'].notna().astype(int)
+        df['A1Cresult'] = df['A1Cresult'].map({
+            'Norm': 0,
+            '>7': 1,
+            '>8': 2
+        }).fillna(-1)
+
+    #Race: drop missing and other, then one-hot encode
     if 'race' in df.columns:
         df = df.dropna(subset=['race']).copy()
         df = df[df['race'] != 'Other'].copy()
         df = pd.get_dummies(df, columns=['race'])
 
-    # 5. Gender: drop unknown/invalid, map Male/Female
+    #Gender: drop unknown/invalid, map Male/Female
     if 'gender' in df.columns:
         df = df[df['gender'] != 'Unknown/Invalid'].copy()
         df['gender'] = df['gender'].map({'Male': 0, 'Female': 1})
 
-    # 6. Replace age with cleaned numeric age
+    #Replace age with cleaned numeric age
     if 'age_numeric' in df.columns:
         df['age'] = df['age_numeric']
         df = df.drop(columns=['age_numeric'], errors='ignore')
 
-    # 7. Weight: binary flag for whether weight was recorded
+    #Weight: binary flag for whether weight was recorded
     if 'weight' in df.columns:
         df['weight'] = (
             df['weight'].notna() & (df['weight'] != '')
         ).astype(int)
         df = df.rename(columns={'weight': 'weight_checked'})
 
-    # 8. Drop columns you decided not to use
+    #Drop columns not being used
     df = df.drop(columns=['payer_code'], errors='ignore')
     df = df.drop(columns=['medical_specialty'], errors='ignore')
 
-    # 9. Use diagnosis category columns created in clean_data()
+    #Use diagnosis category columns created in clean_data(), drop columns, and one hot encode
     diag_pairs = [
         ('diag_1', 'diag_1_category'),
         ('diag_2', 'diag_2_category'),
@@ -223,31 +243,25 @@ def engineer_features(df):
         if cat_col in df.columns:
             df[raw_col] = df[cat_col]
 
-    # Remove rows where any diagnosis category is missing
+    
     required_diag_cols = ['diag_1', 'diag_2', 'diag_3']
     if all(col in df.columns for col in required_diag_cols):
-        df = df[
-            ~(
-                (df['diag_1'] == 'missing') |
-                (df['diag_2'] == 'missing') |
-                (df['diag_3'] == 'missing')
-            )
-        ].copy()
 
-        # Drop helper category columns after replacing raw diagnosis cols
+
+        #Drop helper category columns after replacing raw diagnosis cols
         df = df.drop(
             columns=['diag_1_category', 'diag_2_category', 'diag_3_category'],
             errors='ignore'
         )
 
-        # One-hot encode diagnosis categories
+        #One-hot encode diagnosis categories
         df = pd.get_dummies(
             df,
             columns=['diag_1', 'diag_2', 'diag_3'],
-            drop_first=True
+            drop_first=False
         )
 
-    # 10. Encode medication status AFTER medication-derived counts are created
+    #Encode medication status after counts were created
     med_status_map = {
         'No': 0,
         'Steady': 1,
@@ -259,22 +273,44 @@ def engineer_features(df):
         if col in df.columns:
             df[col] = df[col].map(med_status_map)
 
-    # 11. Drop near-constant medication columns after any counts/encoding
+    #Drop near-constant medication columns after any counts/encoding
     df = df.drop(
         columns=['examide', 'citoglipton', 'troglitazone'],
         errors='ignore'
     )
 
-    # 12. Binary encode diabetesMed
+    #Binary encode diabetesMed
     if 'diabetesMed' in df.columns:
         df['diabetesMed'] = df['diabetesMed'].map({'Yes': 1, 'No': 0})
 
-    # 13. Binary encode change
+    #Binary encode change
     if 'change' in df.columns:
         df['change'] = df['change'].map({'Ch': 1, 'No': 0})
 
     #drop readmitted since it could cause data leakage
-    df = df.drop(columns=['readmitted'], errors='ignore')
+    if 'readmitted' in df.columns:
+        df = df.drop(columns=['readmitted'], errors='ignore')
+
+    #drop encounter and patient id
+    if 'encounter_id' in df.columns or 'patient_nbr' in df.columns:
+        df = df.drop(columns=['encounter_id', 'patient_nbr'], errors='ignore')
+
+    #one hot encode admission type,discharge disposition, and admission source id's
+    cat_id_cols = [
+        'admission_type_id',
+        'discharge_disposition_id',
+        'admission_source_id'
+    ]
+    existing_cat_id_cols = [col for col in cat_id_cols if col in df.columns]
+
+    if existing_cat_id_cols:
+        df = pd.get_dummies(df, columns=existing_cat_id_cols, drop_first=True)
+    
+
+
+    #binary encode all bool values
+    bool_cols = df.select_dtypes(include='bool').columns
+    df[bool_cols] = df[bool_cols].astype(int)
 
     return df
 
