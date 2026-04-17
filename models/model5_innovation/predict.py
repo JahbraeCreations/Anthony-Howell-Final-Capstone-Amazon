@@ -31,7 +31,8 @@ def load_model():
     This is your team's innovation model — use whatever approach you chose.
     """
     import joblib
-    return joblib.load(MODEL_PATH)
+    filepath = MODEL_PATH / "model.joblib"
+    return joblib.load(filepath)
 
 
 def predict(model, test_data):
