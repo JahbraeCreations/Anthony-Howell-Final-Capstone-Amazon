@@ -10,6 +10,8 @@ Output: test_data/model3_results.csv
 import pandas as pd
 from pathlib import Path
 import tensorflow as tf
+import numpy as np
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
 
 # Paths
 MODEL_PATH = Path("models/model3_cnn/saved_model/")
@@ -24,9 +26,10 @@ def load_model():
         import tensorflow as tf
         model = tf.keras.models.load_model(MODEL_PATH / "model.keras")
     """
-    # TODO: Load your saved model
-    model = tf.keras.models.load_model(MODEL_PATH / "baseline_cnn_model.keras")
-    raise NotImplementedError(model)
+    model = tf.keras.models.load_model(MODEL_PATH / "cnn_model.keras")
+
+    return model
+
 
 
 def load_and_preprocess_images(image_dir):
@@ -44,8 +47,14 @@ def load_and_preprocess_images(image_dir):
             ids.append(img_path.name)
         return np.array(images), ids
     """
-    # TODO: Load and preprocess images
-    raise NotImplementedError("Load and preprocess images here")
+    images, ids = [], []
+
+    for img_path in sorted(Path(image_dir).glob("*.png")):
+        img = load_img(img_path, target_size=(224, 224))
+        img_array = img_to_array(img) / 255.0
+        images.append(img_array)
+        ids.append(img_path.name)
+    return np.array(images), ids
 
 
 def predict(model, images):
@@ -76,7 +85,34 @@ def main():
     # })
     # results.to_csv(OUTPUT_FILE, index=False)
 
-    print(f"Predictions saved to {OUTPUT_FILE}")
+
+    print("Starting test run...")
+
+    # Test 1: model loading
+    model = load_model()
+    print("Model loaded successfully")
+    print("Model type:", type(model))
+    print("Model input shape:", model.input_shape)
+    print("Model output shape:", model.output_shape)
+
+    # Test 2: image loading and preprocessing
+    image_dir = TEST_DATA_DIR / "images"
+    images, image_ids = load_and_preprocess_images(image_dir)
+
+    print(f"Loaded {len(images)} images")
+    print("Images array shape:", images.shape)
+
+    if len(image_ids) > 0:
+        print("First 5 image IDs:", image_ids[:5])
+
+    if len(images) == 0:
+        print("Warning: No images found in test folder")
+        return
+
+    print("First image min/max pixel values:", images[0].min(), images[0].max())
+    print("Done testing load functions")
+
+    # print(f"Predictions saved to {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":
