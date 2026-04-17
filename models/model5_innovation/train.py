@@ -14,6 +14,7 @@ Use whatever approach fits your problem best — traditional ML, deep learning,
 clustering, anomaly detection, time series, etc.
 """
 from pathlib import Path
+import pandas as pd
 
 PROCESSED_DATA = Path("data/processed/")
 SAVED_MODEL_DIR = Path("models/model5_innovation/saved_model/")
@@ -21,14 +22,18 @@ SAVED_MODEL_DIR = Path("models/model5_innovation/saved_model/")
 
 def load_data():
     """Load data for your innovation model."""
-    # TODO: Load your dataset
-    raise NotImplementedError
+    
+    #pull the processed data
+    filepath = PROCESSED_DATA / "patient_encounters_2023_processed.csv"
+    return pd.read_csv(filepath)
 
 
 def preprocess(df):
     """Preprocess data for your chosen problem."""
     # TODO: Prepare features
     raise NotImplementedError
+
+
 
 
 def train_model(X_train, y_train):
