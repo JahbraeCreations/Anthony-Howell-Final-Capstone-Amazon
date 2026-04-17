@@ -16,8 +16,8 @@ clustering, anomaly detection, time series, etc.
 from pathlib import Path
 import pandas as pd
 
-PROCESSED_DATA = Path("data/processed/")
-SAVED_MODEL_DIR = Path("models/model5_innovation/saved_model/")
+PROCESSED_DATA = Path("../data/processed/")
+SAVED_MODEL_DIR = Path("../models/model5_innovation/saved_model/")
 
 
 def load_data():
@@ -30,16 +30,59 @@ def load_data():
 
 def preprocess(df):
     """Preprocess data for your chosen problem."""
-    # TODO: Prepare features
-    raise NotImplementedError
+    from sklearn.model_selection import train_test_split
+
+    #make df copy
+    df = df.copy()
+
+    #select all columns with potential data leakage and drop them
+    med_cols = [
+        'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
+        'glimepiride', 'acetohexamide', 'glipizide', 'glyburide',
+        'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose',
+        'miglitol', 'troglitazone', 'tolazamide', 'examide',
+        'citoglipton', 'insulin', 'glyburide-metformin',
+        'glipizide-metformin', 'glimepiride-pioglitazone',
+        'metformin-rosiglitazone', 'metformin-pioglitazone',
+        'num_active_meds', 'n_meds_changed', 'n_meds_increased'
+    ]
+
+    existing_med_cols = [col for col in med_cols if col in df.columns]
+    df = df.drop(columns=existing_med_cols, errors="ignore")
+
+    #set target and features and drop diabetesmed from features
+    y = df["diabetesMed"]
+    X = df.drop(columns=["diabetesMed"], errors="ignore")
+
+    #train test split
+    X_train, X_val, y_train, y_val = train_test_split(
+        X, y,
+        test_size=0.2,
+        random_state=42,
+        stratify=y
+    )
+
+    return X_train, X_val, y_train, y_val
 
 
 
 
 def train_model(X_train, y_train):
-    """Train your innovation model."""
-    # TODO: Train your model
-    raise NotImplementedError
+    """Train an XGBoost classifier."""
+    from xgboost import XGBClassifier
+
+    model = XGBClassifier(
+        n_estimators=200,
+        max_depth=6,
+        learning_rate=0.05,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        objective="binary:logistic",
+        eval_metric="logloss",
+        random_state=42
+    )
+    model.fit(X_train, y_train)
+    return model
 
 
 def evaluate_model(model, X_val, y_val):
@@ -50,8 +93,31 @@ def evaluate_model(model, X_val, y_val):
     - Baseline comparison (what would a naive approach get?)
     - Business impact estimate
     """
-    # TODO: Evaluate your model
-    raise NotImplementedError
+    from sklearn.metrics import accuracy_score, f1_score, classification_report
+
+    y_pred = model.predict(X_val)
+    accuracy = accuracy_score(y_val, y_pred)
+    f1 = f1_score(y_val, y_pred)
+    baseline = max(y_val.mean(), 1 - y_val.mean())
+
+    print("=== Innovation Model Evaluation ===")
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"F1 Score: {f1:.4f}")
+    print(f"Naive baseline accuracy: {baseline:.4f}")
+    print("\nClassification Report:")
+    print(classification_report(y_val, y_pred))
+
+    print("\nChosen success metric: F1 Score")
+    print("It balances precision and recall for identifying patients likely")
+    print("to require diabetes medication.")
+
+    print("\nValue proposition:")
+    print("This model helps estimate diabetes medication need using non-medication")
+    print("clinical features, which could support early intervention and care planning.")
+
+    print("\nCost-benefit estimate:")
+    print("If providers can identify likely medication need earlier, they may improve")
+    print("care coordination and reduce delays in treatment decisions.")
 
 
 def save_model(model):
@@ -62,8 +128,10 @@ def save_model(model):
         SAVED_MODEL_DIR.mkdir(parents=True, exist_ok=True)
         joblib.dump(model, SAVED_MODEL_DIR / "model.joblib")
     """
-    # TODO: Save your model
-    raise NotImplementedError
+    import joblib
+
+    SAVED_MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(model, SAVED_MODEL_DIR / "model.joblib")
 
 
 def main():
@@ -71,16 +139,20 @@ def main():
     df = load_data()
 
     # 2. Preprocess
-    # X_train, X_val, y_train, y_val = preprocess(df)
 
-    # 3. Train
-    # model = train_model(X_train, y_train)
+    X_train, X_val, y_train, y_val = preprocess(df)
 
-    # 4. Evaluate
-    # evaluate_model(model, X_val, y_val)
+    # 3. Train baseline
+    
+    model = train_model(X_train, y_train)
 
+    # 4. Evaluate baseline
+
+    evaluate_model(model, X_val, y_val)
+    
     # 5. Save
-    # save_model(model)
+
+    save_model(model)
 
     print("Training complete!")
 
