@@ -7,12 +7,21 @@ Loads your trained model and generates predictions on test data.
 Usage: python predict.py
 Output: test_data/model5_results.csv
 """
-import pandas as pd
+#to pull clean data and engineer features from data_pipeline
+import sys
 from pathlib import Path
+import pandas as pd
+
+# Project root
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import shared pipeline functions
+from pipelines.data_pipeline import clean_data, engineer_features
 
 # Paths
-MODEL_PATH = Path("models/model5_innovation/saved_model/")
-TEST_DATA_DIR = Path("test_data/")
+MODEL_PATH = PROJECT_ROOT / "models" / "model5_innovation" / "saved_model"
+TEST_DATA_DIR = PROJECT_ROOT / "test_data"
 OUTPUT_FILE = TEST_DATA_DIR / "model5_results.csv"
 
 
@@ -21,8 +30,8 @@ def load_model():
 
     This is your team's innovation model — use whatever approach you chose.
     """
-    # TODO: Load your saved model
-    raise NotImplementedError("Load your trained model here")
+    import joblib
+    return joblib.load(MODEL_PATH)
 
 
 def predict(model, test_data):

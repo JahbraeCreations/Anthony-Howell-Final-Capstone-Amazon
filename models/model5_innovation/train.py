@@ -16,8 +16,9 @@ clustering, anomaly detection, time series, etc.
 from pathlib import Path
 import pandas as pd
 
-PROCESSED_DATA = Path("../data/processed/")
-SAVED_MODEL_DIR = Path("../models/model5_innovation/saved_model/")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROCESSED_DATA = PROJECT_ROOT / "data" / "processed"
+SAVED_MODEL_DIR = Path(__file__).resolve().parent / "saved_model"
 
 
 def load_data():
