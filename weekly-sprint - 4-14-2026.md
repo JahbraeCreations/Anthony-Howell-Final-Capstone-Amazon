@@ -2,7 +2,7 @@
 
 **Team Name:**
 **Sprint #:** __ of 7
-**Date:**
+**Date:** 4/15/2026
 
 ---
 
@@ -10,24 +10,24 @@
 
 _List completed tasks. Be specific — "trained model 1" is better than "worked on models."_
 
--
--
--
+- Jesse - created baseline CNN using train.py file
+- Readmission binary
+- EDA and pre-processing pipeline
+- 
 
 ## What We're Working On Next Week
 
 _List planned tasks for the upcoming sprint._
-
--
--
+- Jesse - need to finish cnn prediction.py
+- Brodie to submit model to main
 -
 
 ## Blockers or Challenges
 
 _Anything slowing you down? Data issues, team coordination, unclear requirements?_
 
--
--
+- Need to make a team effort to review model 2 deep learning model
+- Need to finalize an idea for innovation model - perhaps likelihood of needing diabetes meds?
 
 ## Model Status Tracker
 
