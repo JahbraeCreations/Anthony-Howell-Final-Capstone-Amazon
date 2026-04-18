@@ -10,6 +10,8 @@ Framework: TensorFlow / Keras
 IMPORTANT: Resize images before training! Raw images may be very high resolution
 and will cause memory errors if loaded full-size.
 """
+
+# Import needed libraries
 from pathlib import Path
 import os
 import pandas as pd
@@ -19,38 +21,22 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import ModelCheckpoint
 
-RAW_IMAGES = Path("../../data/raw/retinal_scan_images")
-SAVED_MODEL_DIR = Path("../../models/model3_cnn/saved_model/")
-CSV_PATH = Path("../../data/raw/retinal_labels.csv")
+# Updated file paths to avoid issues with running this code
+# I found that the previous code would error out if the terminal was not in a particular folder
+BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent.parent
+
+RAW_IMAGES = PROJECT_ROOT / "data/raw/retinal_scan_images"
+SAVED_MODEL_DIR = BASE_DIR / "saved_model"
+CSV_PATH = PROJECT_ROOT / "data/raw/retinal_labels.csv"
 
 
 def load_images(image_dir, csv_path, target_size=(224, 224), batch_size=32):
-    """Load and preprocess images from directory.
-
-    Example using Keras ImageDataGenerator:
-        from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
-        datagen = ImageDataGenerator(
-            rescale=1./255,
-            validation_split=0.2,
-            rotation_range=20,
-            horizontal_flip=True,
-            zoom_range=0.2,
-        )
-        train_gen = datagen.flow_from_directory(
-            image_dir,
-            target_size=target_size,
-            batch_size=32,
-            class_mode='binary',
-            subset='training',
-        )
-
-    IMPORTANT: Handle class imbalance with class_weight or augmentation.
-    """
-    # Read in image directory path and create dateframe for retinal_labels.csv
+    # Read in image directory path and create dataframe from retinal_labels.csv
     image_dir = Path(image_dir)
-
     df = pd.read_csv(csv_path)
 
     # Add new columns to the dataframe
@@ -64,7 +50,8 @@ def load_images(image_dir, csv_path, target_size=(224, 224), batch_size=32):
     # filepath
     df["filepath"] = df["filename"].apply(lambda x: str(image_dir / x))
 
-    # binary label, convert to string
+    # binary label from diagnosis column: 0 = 0, 1 = 1-4 
+    # convert to string
     df["binary_label"] = df["diagnosis"].apply(lambda x: 0 if int(x) == 0 else 1)
     df["binary_label"] = df["binary_label"].astype(str)
 
@@ -72,11 +59,12 @@ def load_images(image_dir, csv_path, target_size=(224, 224), batch_size=32):
     train_df, val_df = train_test_split(
         df,
         test_size=0.2,
-        stratify=df["binary_label"],
-        random_state=42
+        stratify=df["binary_label"]
     )
 
     # Generators
+
+    # Scale training data and set augmentation
     train_datagen = ImageDataGenerator(
         rescale=1.0 / 255,
         rotation_range=20,
@@ -84,10 +72,12 @@ def load_images(image_dir, csv_path, target_size=(224, 224), batch_size=32):
         zoom_range=0.2
     )
 
+    # Scale validation data without augmentation
     val_datagen = ImageDataGenerator(
         rescale=1.0 / 255
     )
 
+    # Training generator
     train_gen = train_datagen.flow_from_dataframe(
         dataframe=train_df,
         x_col="filepath",
@@ -98,6 +88,7 @@ def load_images(image_dir, csv_path, target_size=(224, 224), batch_size=32):
         shuffle=True
     )
 
+    # Validation generator
     val_gen = val_datagen.flow_from_dataframe(
         dataframe=val_df,
         x_col="filepath",
@@ -130,6 +121,11 @@ def build_model():
         ])
         model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     """
+
+    # Build model
+    # This is a basic model that uses 2D convolution and max pooling
+    # Relu is the activation function used within the hidden layers while output layer uses sigmoid for binary classification
+    # Added Dropout for improved performance/prevent overfitting
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=(224, 224, 3)),
 
@@ -149,6 +145,7 @@ def build_model():
         tf.keras.layers.Dense(1, activation='sigmoid')
     ])
 
+    # Compile model
     model.compile(
         optimizer='adam',
         loss='binary_crossentropy',
@@ -159,32 +156,37 @@ def build_model():
 
 
 def train_model(model, train_data, val_data):
-    """Train the CNN with callbacks.
+    
+    # Setup early stopping
+    early_stop = EarlyStopping(
+        monitor='val_loss',
+        patience=5,
+        restore_best_weights=True,
+        verbose=1
+    )
 
-    Use EarlyStopping and optionally ReduceLROnPlateau.
-    Pass class_weight to model.fit() to handle imbalance.
-    """
+    # Setup model checkpoint
+    checkpoint = ModelCheckpoint(
+    filepath=SAVED_MODEL_DIR / "best_model.keras",
+    monitor='val_loss',
+    save_best_only=True,
+    verbose=1
+    )
 
+    # Train model and employ early stopping and checkpoint
     history = model.fit(
         train_data,
         validation_data=val_data,
-        epochs=10
+        epochs=30,
+        callbacks=[early_stop, checkpoint]
     )
+
+    print("Best val_loss achieved:", min(history.history['val_loss']))
 
     return history
 
 
 def evaluate_model(model, val_data):
-    """Evaluate CNN performance.
-
-    Must include:
-    - Accuracy and weighted F1
-    - Confusion matrix
-    - Sample predictions with images
-
-    Bonus: Grad-CAM visualizations showing what the model "sees"
-    """
-
     # Reset generator to ensure predictions align with labels
     val_data.reset()
 
@@ -234,12 +236,7 @@ def evaluate_model(model, val_data):
 
 
 def save_model(model):
-    """Save the trained model.
-
-    Example:
-        SAVED_MODEL_DIR.mkdir(parents=True, exist_ok=True)
-        model.save(SAVED_MODEL_DIR / "model.keras")
-    """
+    # Save best model to directory
     if not os.path.exists(SAVED_MODEL_DIR):
         os.makedirs(SAVED_MODEL_DIR)
 
@@ -247,22 +244,6 @@ def save_model(model):
 
 
 def main():
-    # 1. Load and preprocess images
-    # train_data, val_data = load_images(RAW_IMAGES / "images")
-
-    # 2. Build model
-    # model = build_model()
-
-    # 3. Train
-    # train_model(model, train_data, val_data)
-
-    # 4. Evaluate
-    # evaluate_model(model, val_data)
-
-    # 5. Save
-    # save_model(model)
-
-
     print("\n=== STEP 1: Load Data ===")
     train_data, val_data, train_df, val_df = load_images(
         image_dir=RAW_IMAGES,
