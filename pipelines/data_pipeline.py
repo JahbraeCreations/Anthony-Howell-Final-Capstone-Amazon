@@ -366,3 +366,54 @@ def load_processed_data(filename):
             f"Run the data pipeline first to generate processed data."
         )
     return pd.read_csv(filepath)
+
+import joblib
+
+SAVED_MODEL_DIR = PROJECT_ROOT / "models" / "model1_traditional_ml" / "saved_model"
+
+def save_pipeline_artifacts(feature_cols, filename="feature_cols.joblib"):
+    """Save feature column list so predict.py uses exact same columns as train."""
+    SAVED_MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    joblib.dump(feature_cols, SAVED_MODEL_DIR / filename)
+    print(f"Saved feature cols → {SAVED_MODEL_DIR / filename}")
+
+def load_pipeline_artifacts(filename="feature_cols.joblib"):
+    """Load saved feature columns for use in predict.py."""
+    return joblib.load(SAVED_MODEL_DIR / filename)
+
+
+def find_test_csv(test_dir, expected_columns=None, name_hint=None):
+    """Find the right test CSV in test_data/ folder.
+    
+    Args:
+        test_dir: Path to test_data/
+        expected_columns: List of column names to look for
+        name_hint: String that should appear in the filename
+    
+    Returns:
+        Path to the matching CSV file
+    """
+    test_dir = Path(test_dir)
+    candidates = list(test_dir.glob("*.csv"))
+    
+    # filter out results files
+    candidates = [f for f in candidates if 'results' not in f.name.lower()]
+    
+    if name_hint:
+        hinted = [f for f in candidates if name_hint.lower() in f.name.lower()]
+        if hinted:
+            return hinted[0]
+    
+    if expected_columns and candidates:
+        for f in candidates:
+            try:
+                cols = pd.read_csv(f, nrows=1).columns.tolist()
+                if all(c in cols for c in expected_columns):
+                    return f
+            except Exception:
+                continue
+    
+    if candidates:
+        return candidates[0]
+    
+    raise FileNotFoundError(f"No suitable test CSV found in {test_dir}")
