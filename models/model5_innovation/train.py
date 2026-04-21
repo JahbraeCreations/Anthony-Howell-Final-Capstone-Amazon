@@ -53,7 +53,7 @@ def preprocess(df):
 
     #set target and features and drop diabetesmed from features
     y = df["diabetesMed"]
-    X = df.drop(columns=["diabetesMed"], errors="ignore")
+    X = df.drop(columns=["diabetesMed", "encounter_id"], errors="ignore")
 
     #train test split
     X_train, X_val, y_train, y_val = train_test_split(
