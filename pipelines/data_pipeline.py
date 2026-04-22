@@ -292,8 +292,8 @@ def engineer_features(df):
         df = df.drop(columns=['readmitted'], errors='ignore')
 
     #drop encounter and patient id
-    if 'encounter_id' in df.columns or 'patient_nbr' in df.columns:
-        df = df.drop(columns=['encounter_id', 'patient_nbr'], errors='ignore')
+    if 'patient_nbr' in df.columns:
+        df = df.drop(columns=['patient_nbr'], errors='ignore')
 
     #one hot encode admission type,discharge disposition, and admission source id's
     cat_id_cols = [
