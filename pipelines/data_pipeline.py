@@ -58,7 +58,8 @@ def clean_data(df):
     # TODO: Add your cleaning logic
 
     df = df.copy()
-
+   
+    
     #drop duplicates
     if 'encounter_id' in df.columns:
         df = df.drop_duplicates(subset=['encounter_id'])
@@ -260,7 +261,21 @@ def engineer_features(df):
             columns=['diag_1', 'diag_2', 'diag_3'],
             drop_first=False
         )
+        # total prior visits — strong readmission signal
+    # total prior visits — strong readmission signal
+    visit_cols = ['number_outpatient', 'number_emergency', 'number_inpatient']
+    if all(col in df.columns for col in visit_cols):
+        df['total_prior_visits'] = df[visit_cols].sum(axis=1)
 
+    # insulin flag — must be before medication encoding or insulin is already numeric
+    if 'insulin' in df.columns:
+        df['on_insulin'] = (df['insulin'] != 'No').astype(int)
+
+    # high prior inpatient visits AND many medications = high risk combo
+    if 'number_inpatient' in df.columns and 'num_medications' in df.columns:
+        df['inpatient_x_medications'] = df['number_inpatient'] * df['num_medications']
+
+    
     #Encode medication status after counts were created
     med_status_map = {
         'No': 0,

@@ -1,0 +1,9 @@
+{
+  "model": "DNN",
+  "auc_roc": 0.6871,
+  "benchmark_met": false,
+  "stretch_goal_met": false,
+  "model1_auc_for_comparison": 0.6865,
+  "dnn_vs_xgboost_diff": 0.0006,
+  "epochs_trained": 23
+}
