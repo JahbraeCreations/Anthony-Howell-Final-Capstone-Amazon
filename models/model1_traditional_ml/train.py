@@ -17,6 +17,7 @@ Outputs:
 
 import sys
 import json
+from xml.parsers.expat import model
 import joblib
 import warnings
 import numpy as np
@@ -24,6 +25,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 
+from imblearn.over_sampling import SMOTE
+from imblearn.pipeline import Pipeline as ImbPipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.pipeline import Pipeline
@@ -136,19 +139,31 @@ def build_models(scale_pos_weight=1.0):
         ]),
     }
     if XGBOOST_AVAILABLE:
-        models['XGBoost'] = Pipeline([
+        from imblearn.pipeline import Pipeline as ImbPipeline
+        from imblearn.over_sampling import SMOTE
+        models['XGBoost'] = ImbPipeline([
             ('imputer', SimpleImputer(strategy='median')),
+            ('smote', SMOTE(random_state=42)),
             ('clf', XGBClassifier(
-                n_estimators=300,
-                max_depth=5,
-                learning_rate=0.05,
-                scale_pos_weight=scale_pos_weight,
+                n_estimators=500,
+                max_depth=4,
+                learning_rate=0.03,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                min_child_weight=3,
+                gamma=0.05,
                 use_label_encoder=False,
                 eval_metric='logloss',
                 random_state=42,
-                n_jobs=-1
+                 n_jobs=-1
             )),
         ])
+    print('XGBoost + SMOTE pipeline ready')
+
+
+
+
+
     return models
 
 
@@ -183,7 +198,8 @@ def plot_shap(model, X_train, feature_names):
     # transform X through pipeline steps before the classifier
     X_transformed = X_train.copy()
     for step_name, step in model.steps[:-1]:
-        X_transformed = step.transform(X_transformed)
+        if hasattr(step, 'transform'):
+            X_transformed = step.transform(X_transformed)
 
     try:
         explainer = shap.TreeExplainer(clf)
@@ -269,8 +285,8 @@ def main():
     # 5. save model and feature column list
     # feature_cols is critical — predict.py uses it to align test data columns
     joblib.dump(best_model, SAVED_MODEL_DIR / 'model.joblib')
-    save_pipeline_artifacts(feature_names, SAVED_MODEL_DIR)
-    print(f'\nmodel saved → {SAVED_MODEL_DIR / "model.joblib"}')
+    joblib.dump(feature_names, SAVED_MODEL_DIR / 'feature_cols.joblib')
+    print(f'Feature cols saved → {SAVED_MODEL_DIR / "feature_cols.joblib"}')
 
     # 6. save metrics
     metrics_out = {

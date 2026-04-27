@@ -32,7 +32,8 @@ PROJECT_ROOT = MODEL_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from pipelines.data_pipeline import (
-    preprocess_encounters_for_prediction,
+    clean_data,
+    engineer_features,
     load_pipeline_artifacts,
     find_test_csv,
 )
@@ -72,7 +73,7 @@ def main():
 
     print('loading model...')
     model = joblib.load(model_path)
-    feature_cols = load_pipeline_artifacts(SAVED_MODEL_DIR)
+    feature_cols = joblib.load(SAVED_MODEL_DIR / 'feature_cols.joblib')
     print(f'  model loaded | expecting {len(feature_cols)} features')
 
     # 2. find test data
@@ -98,7 +99,17 @@ def main():
     #   - aligns columns to exactly what the model was trained on
     #   - adds missing columns as 0, drops unknown extras
     print('\npreprocessing...')
-    X, df_clean = preprocess_encounters_for_prediction(raw_df, feature_cols)
+    df_clean = clean_data(raw_df)
+    df_clean = engineer_features(df_clean)
+    df_clean = df_clean.drop(columns=['readmission_binary'], errors='ignore')
+    obj_cols = df_clean.select_dtypes(include='object').columns.tolist()
+    if obj_cols:
+        df_clean = pd.get_dummies(df_clean, columns=obj_cols, drop_first=True)
+    df_clean = df_clean.apply(pd.to_numeric, errors='coerce')
+    for col in feature_cols:
+        if col not in df_clean.columns:
+            df_clean[col] = 0
+    X = df_clean[feature_cols]
     print(f'  rows after preprocessing: {X.shape[0]:,}')
 
     # get encounter IDs from cleaned df (after filtering deceased etc.)
