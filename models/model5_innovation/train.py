@@ -27,6 +27,7 @@ from pipelines.data_pipeline import clean_data_model_5, engineer_features_model_
 
 
 def create_processed_data():
+    #function created so it can create the processed data from the raw for cleaner model code
     filepath = UNPROCESSED_DATA / "patient_encounters_2023.csv"
     filepath_2 = PROCESSED_DATA / "patient_encounters_2023_processed.csv"
     df = pd.read_csv(filepath)
@@ -163,14 +164,15 @@ def main():
     # 0.  creates the processed data
     create_processed_data()
     
-    # 1. Load data
+    # 1. Load the processed data
     df = load_data()
 
     # 2. Preprocess
 
     X_train, X_val, y_train, y_val = preprocess(df)
 
-    # 3. Train baseline
+    # 3. Train baseline (work was done seperately to determine that this was best model)
+    #i evaluated decision tree, random forest, xgboost, and logistic regression
     
     model = train_model(X_train, y_train)
 
