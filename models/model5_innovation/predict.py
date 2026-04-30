@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import shared pipeline functions
-from pipelines.data_pipeline import clean_data, engineer_features
+from pipelines.data_pipeline import clean_data_model_5, engineer_features_model_5
 
 # Paths
 MODEL_PATH = PROJECT_ROOT / "models" / "model5_innovation" / "saved_model"
@@ -39,8 +39,8 @@ def predict(model, test_df):
     df = test_df.copy()
 
     #clean the test data
-    df = clean_data(df)
-    df = engineer_features(df)
+    df = clean_data_model_5(df)
+    df = engineer_features_model_5(df)
 
     #put test data encounter id in the results
     df_result = df[['encounter_id']].copy()
