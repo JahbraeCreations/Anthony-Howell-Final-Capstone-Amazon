@@ -12,13 +12,13 @@ from pathlib import Path
 
 # Page config
 st.set_page_config(
-    page_title="AI Capstone Dashboard",
-    page_icon="🔬",
+    page_title="Aegis Health Strategy",
+    page_icon="⚕️",
     layout="wide",
 )
 
-st.title("AI Capstone Dashboard")
-st.write("Select a model from the sidebar to make predictions.")
+st.title("Aegis Health Strategy")
+st.write("")
 
 # Sidebar navigation
 model_choice = st.sidebar.selectbox(
@@ -29,7 +29,8 @@ model_choice = st.sidebar.selectbox(
         "Model 2: Deep Learning",
         "Model 3: CNN (Image Classification)",
         "Model 4: NLP (Text Classification)",
-        "Model 5: Innovation",
+        "Model 5: XGBoost",
+        "Our Team"
     ],
 )
 
@@ -55,7 +56,34 @@ model_choice = st.sidebar.selectbox(
 
 if model_choice == "Home":
     st.write("Welcome! Use the sidebar to navigate between models.")
-    st.write("Each model page lets you input data and see predictions in real time.")
+    st.markdown("""
+## Transforming Healthcare Through Intelligent Analytics
+
+At **Aegis Health Strategy**, we specialize in leveraging artificial intelligence, machine learning, and advanced healthcare analytics to help medical organizations make smarter, faster, and more impactful clinical decisions.
+
+Our mission is to empower healthcare providers with data-driven solutions that improve patient outcomes, optimize operational efficiency, and reduce preventable healthcare costs.
+
+Through innovative predictive modeling, clinical decision support systems, and AI-powered diagnostics, we help healthcare organizations tackle critical challenges such as:
+
+- **Patient Readmission Risk Prediction**  
+- **Diabetic Retinopathy Detection**  
+- **Medication Effectiveness Analysis**  
+- **Clinical Resource Optimization**  
+- **Healthcare Data Intelligence**
+
+By combining cutting-edge machine learning models with real-world clinical insight, Aegis Health Strategy bridges the gap between healthcare data and actionable patient care strategies.
+
+### Our Commitment
+We believe healthcare innovation should be:
+- **Accurate** — delivering reliable predictive insights  
+- **Transparent** — providing interpretable AI for clinical trust  
+- **Efficient** — streamlining workflows and improving care delivery  
+- **Scalable** — built for long-term healthcare transformation  
+
+Explore our platform to discover how intelligent healthcare solutions can drive better decisions, better care, and better outcomes.
+
+**Protecting Patients. Powering Decisions. Advancing Healthcare.**
+""")
 
 elif model_choice == "Model 1: Traditional ML":
     st.header("Model 1: Traditional ML")
@@ -153,7 +181,18 @@ elif model_choice == "Model 4: NLP (Text Classification)":
 
     st.info("Not yet implemented — add text input and classification here.")
 
-elif model_choice == "Model 5: Innovation":
-    st.header("Model 5: Innovation")
+elif model_choice == "Model 5: XGBoost":
+    st.header("Model 5: XGBoost Insulin Predictor")
     # TODO: Add your custom model interface
-    st.info("Not yet implemented — add your innovation model interface here.")
+    st.info("For this model, we thought about what else would be very important to know about a patient with diabites.  As a result of this, what would happen if a patient came in unresponsive or the paperwork got lost and we needed to know if they needed insulin?  Therefore, for our innovation model we used a XGBoost model to predict if the patient needed to be taking insulin.")
+    
+
+
+
+elif model_choice == "Our Team":
+    st.header("Our Team")
+    st.write("Please meet the members of Aegis Health Strategy")
+    st.info("Clifton Rand: Cliff is our data engineer lead as well as our Model 5 lead")
+    st.info("Jesse Goff: Jesse is our CNN model lead as well as our Streamlit lead")
+    st.info("Sean McManus: Sean is our Traditional ML lead as well as our Presentation lead")
+    st.info("Brodie Ellis: Brodie is our NLP lead")
