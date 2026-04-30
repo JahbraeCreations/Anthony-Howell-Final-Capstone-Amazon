@@ -15,10 +15,33 @@ clustering, anomaly detection, time series, etc.
 """
 from pathlib import Path
 import pandas as pd
+import sys
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
 PROCESSED_DATA = PROJECT_ROOT / "data" / "processed"
+UNPROCESSED_DATA = PROJECT_ROOT / "data" / "raw"
 SAVED_MODEL_DIR = Path(__file__).resolve().parent / "saved_model"
+
+from pipelines.data_pipeline import clean_data_model_5, engineer_features_model_5
+
+
+def create_processed_data():
+    filepath = UNPROCESSED_DATA / "patient_encounters_2023.csv"
+    filepath_2 = PROCESSED_DATA / "patient_encounters_2023_processed.csv"
+    df = pd.read_csv(filepath)
+
+    df = df.copy()
+
+    df = clean_data_model_5(df)
+    df = engineer_features_model_5(df)
+
+    df = df.drop(columns=["encounter_id"], errors="ignore")
+
+    df.to_csv(filepath_2, index=False)
+
+    
+
 
 
 def load_data():
@@ -136,6 +159,10 @@ def save_model(model):
 
 
 def main():
+    
+    # 0.  creates the processed data
+    create_processed_data()
+    
     # 1. Load data
     df = load_data()
 
