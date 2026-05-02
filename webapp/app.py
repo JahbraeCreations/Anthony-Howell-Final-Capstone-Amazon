@@ -156,10 +156,19 @@ elif model_choice == "Model 3: CNN (Image Classification)":
     # ---- END PATTERN ----
 
     # ---- INTEGRATION PATTERN (uncomment and adapt) ----
+  
     @st.cache_resource
     def load_model3():
         import tensorflow as tf
-        return tf.keras.models.load_model("../models/model3_cnn/saved_model/cnn_model.keras")
+
+        model_url = "https://huggingface.co/jfranklingoff/Capstone-Project-CNN-Model/resolve/main/cnn_model.keras"
+
+        local_model_path = tf.keras.utils.get_file(
+            "cnn_model.keras",
+            origin=model_url
+        )
+
+        return tf.keras.models.load_model(local_model_path)
     
     model = load_model3()
     
@@ -184,7 +193,12 @@ elif model_choice == "Model 3: CNN (Image Classification)":
             st.write(f"Confidence: {confidence:.2%}")
     # ---- END PATTERN ----
 
-    st.info("Not yet implemented — add image upload and classification here.")
+    st.info("""
+            Add a retinal scan image file by dragging and dropping a file, or select a file using the Browse files button.
+
+            Once uploaded, your selected image will be displayed. Click Classify to predict a classification with confidence score.
+            """
+            )
 
 elif model_choice == "Model 4: NLP (Text Classification)":
     st.header("Model 4: NLP — Text Classification")
