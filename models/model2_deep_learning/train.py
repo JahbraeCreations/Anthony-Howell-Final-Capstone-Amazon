@@ -1,53 +1,38 @@
 """
 Model 2: Readmission Risk — Deep Neural Network — Train
 ========================================================
-Trains a DNN on tabular encounter data using TensorFlow/Keras.
-Saves model, scaler, imputer, and feature cols for use by predict.py.
-Compares performance against Model 1 (XGBoost).
+Builds and trains a Keras DNN on the same encounter data as Model 1.
+Compares DNN performance against Model 1's XGBoost result.
 
 Usage (from project root):
     python models/model2_deep_learning/train.py
 
-Outputs:
-    models/model2_deep_learning/saved_model/dnn_model.keras
-    models/model2_deep_learning/saved_model/scaler.joblib
-    models/model2_deep_learning/saved_model/imputer.joblib
+Saves:
+    models/model2_deep_learning/saved_model/model.keras
     models/model2_deep_learning/saved_model/feature_cols.joblib
-    models/model2_deep_learning/saved_model/metrics.json
-    models/model2_deep_learning/saved_model/training_curves.png
-    models/model2_deep_learning/saved_model/confusion_matrix.png
+    models/model2_deep_learning/saved_model/imputer.joblib
+    models/model2_deep_learning/saved_model/scaler.joblib
 """
 
 import sys
-import json
-import os
-import joblib
 import warnings
+import joblib
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from pathlib import Path
 
-# suppress tensorflow info logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import roc_auc_score, classification_report
 
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, Input
-from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.optimizers import Adam
-
-from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import (
-    roc_auc_score, classification_report,
-    confusion_matrix, ConfusionMatrixDisplay
-)
-
+from tensorflow import keras
+from tensorflow.keras import layers, callbacks
+from tensorflow.keras import regularizers
 warnings.filterwarnings('ignore')
 
-# ── paths ──────────────────────────────────────────────────────────────────
+# this file is at models/model2_deep_learning/train.py
+# so project root is 2 levels up
 MODEL_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = MODEL_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -62,35 +47,29 @@ from pipelines.data_pipeline import (
 SAVED_MODEL_DIR = MODEL_DIR / 'saved_model'
 SAVED_MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-TARGET_COL = 'readmission_binary'
-DROP_COLS = ['encounter_id', 'patient_nbr', 'Unnamed: 0', 'readmitted']
+TARGET = 'readmission_binary'
 
-# update this with actual model 1 result for comparison printout
-MODEL1_AUC = 0.6865
+# model 1 AUC for comparison at the end
+MODEL1_AUC = 0.6909
 
-
-# ── data loading ───────────────────────────────────────────────────────────
 
 def load_and_prepare():
-    """Load raw data, run full pipeline, return X and y."""
+    # exact same pipeline as model 1 — same data, same features
     print('loading raw data...')
     df = load_raw_data('patient_encounters_2023.csv')
     print(f'  raw shape: {df.shape}')
 
-    print('cleaning...')
     df = clean_data(df)
-
-    print('engineering features...')
     df = engineer_features(df)
-
     print(f'  processed shape: {df.shape}')
 
-    if TARGET_COL not in df.columns:
-        raise ValueError(f"target column '{TARGET_COL}' not found")
+    if TARGET not in df.columns:
+        raise ValueError(f"'{TARGET}' column not found — check that 'readmitted' exists in raw data")
 
-    y = df[TARGET_COL].astype(int)
-    X = df.drop(columns=[c for c in DROP_COLS + [TARGET_COL] if c in df.columns])
+    y = df[TARGET].astype(int)
+    X = df.drop(columns=[TARGET, 'encounter_id'], errors='ignore')
 
+    # one-hot encode any leftover object columns
     obj_cols = X.select_dtypes(include='object').columns.tolist()
     if obj_cols:
         print(f'  one-hot encoding: {obj_cols}')
@@ -99,53 +78,69 @@ def load_and_prepare():
     X = X.apply(pd.to_numeric, errors='coerce')
 
     print(f'  features: {X.shape[1]}')
-    print(f'  class balance: {y.value_counts().to_dict()}')
+    print(f'  class balance — 0: {(y==0).sum()}  1: {(y==1).sum()}')
     return X, y
 
 
-# ── architecture ───────────────────────────────────────────────────────────
+def preprocess(X_train, X_val):
+    # DNNs are sensitive to feature scale — impute then standardize
+    # we save the imputer and scaler so predict.py applies the exact same transform
+    imputer = SimpleImputer(strategy='median')
+    X_train_imp = imputer.fit_transform(X_train)
+    X_val_imp = imputer.transform(X_val)
 
-def build_dnn(n_features, learning_rate=0.001):
-    """
-    Build DNN architecture.
-    Dense(256) -> BN -> Dropout -> Dense(128) -> BN -> Dropout -> Dense(64) -> Dropout -> Output
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train_imp)
+    X_val_scaled = scaler.transform(X_val_imp)
 
-    Naming the AUC metric explicitly so the history key is always 'auc'
-    regardless of TensorFlow version — avoids the 'auc_1' key issue.
-    """
-    model = Sequential([
-        Input(shape=(n_features,)),
+    return X_train_scaled, X_val_scaled, imputer, scaler
 
-        Dense(256, activation='relu'),
-        BatchNormalization(),
-        Dropout(0.3),
 
-        Dense(128, activation='relu'),
-        BatchNormalization(),
-        Dropout(0.3),
+def build_model(input_dim):
+    # architecture: input -> dense layers with batch norm and dropout -> sigmoid output
+    # batch norm stabilizes training, dropout prevents overfitting
+    # getting progressively smaller (256 -> 128 -> 64 -> 32) is a standard funnel pattern
 
-        Dense(64, activation='relu'),
-        Dropout(0.2),
+    model = keras.Sequential([
+        layers.Input(shape=(input_dim,)),
 
-        Dense(1, activation='sigmoid')
+        layers.Dense(256, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
+        layers.BatchNormalization(),
+        layers.Dropout(0.4),
+
+        layers.Dense(128, activation='relu'),
+        layers.BatchNormalization(),
+        layers.Dropout(0.4),
+
+        layers.Dense(64, activation='relu'),
+        layers.BatchNormalization(),
+        layers.Dropout(0.2),
+
+        layers.Dense(32, activation='relu'),
+        layers.Dropout(0.2),
+
+        # sigmoid output for binary classification probability
+        layers.Dense(1, activation='sigmoid'),
     ])
 
     model.compile(
-        optimizer=Adam(learning_rate=learning_rate),
+        optimizer=keras.optimizers.Adam(learning_rate=0.001),
         loss='binary_crossentropy',
-        # name AUC explicitly — this ensures history key is 'auc' not 'auc_1'
-        metrics=[tf.keras.metrics.AUC(name='auc'), 'accuracy']
+        metrics=['AUC'],
     )
 
     return model
 
 
-# ── training ───────────────────────────────────────────────────────────────
+def train_model(model, X_train, y_train, X_val, y_val):
+    # class weight to handle imbalance — same idea as scale_pos_weight in XGBoost
+    neg = (y_train == 0).sum()
+    pos = (y_train == 1).sum()
+    class_weight = {0: 1.0, 1: neg / pos if pos > 0 else 1.0}
+    print(f'  class weight: {class_weight}')
 
-def train_dnn(model, X_train, y_train, X_val, y_val, class_weight):
-    """Train the DNN with early stopping and LR reduction."""
-
-    early_stop = EarlyStopping(
+    # stop if val AUC doesnt improve for 20 epochs now.
+    early_stop = callbacks.EarlyStopping(
         monitor='val_auc',
         patience=10,
         mode='max',
@@ -153,19 +148,22 @@ def train_dnn(model, X_train, y_train, X_val, y_val, class_weight):
         verbose=1
     )
 
-    reduce_lr = ReduceLROnPlateau(
-        monitor='val_loss',
+    # cut learning rate in half if val AUC plateaus for 5 epochs (5 didnt work well, lets try 10 )
+    #
+    reduce_lr = callbacks.ReduceLROnPlateau(
+        monitor='val_auc',
         factor=0.5,
         patience=5,
+        mode='max',
         min_lr=1e-6,
         verbose=1
     )
 
     history = model.fit(
         X_train, y_train,
-        epochs=100,
-        batch_size=256,
         validation_data=(X_val, y_val),
+        epochs=100,
+        batch_size=128,
         class_weight=class_weight,
         callbacks=[early_stop, reduce_lr],
         verbose=1
@@ -174,143 +172,74 @@ def train_dnn(model, X_train, y_train, X_val, y_val, class_weight):
     return history
 
 
-# ── plots ──────────────────────────────────────────────────────────────────
+def evaluate(model, X_val, y_val):
+    # keras predict returns shape (n, 1) so flatten to 1d
+    proba = model.predict(X_val, verbose=0).flatten()
+    preds = (proba >= 0.5).astype(int)
+    auc = roc_auc_score(y_val, proba)
+    report = classification_report(y_val, preds, output_dict=True)
 
-def plot_training_curves(history):
-    """Save training AUC and loss curves."""
+    print(f"\n  Deep Neural Network")
+    print(f"  AUC-ROC  : {auc:.4f}  {'✅' if auc >= 0.70 else '❌ below 0.70 benchmark'}")
+    print(f"  F1 (1)   : {report['1']['f1-score']:.4f}")
+    print(f"  Precision: {report['1']['precision']:.4f}  Recall: {report['1']['recall']:.4f}")
 
-    # find AUC keys dynamically — handles any TF version naming
-    all_keys = list(history.history.keys())
-    auc_key = next((k for k in all_keys if 'auc' in k and 'val' not in k), None)
-    val_auc_key = next((k for k in all_keys if 'auc' in k and 'val' in k), None)
+    return auc
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-
-    if auc_key and val_auc_key:
-        axes[0].plot(history.history[auc_key], label='train AUC')
-        axes[0].plot(history.history[val_auc_key], label='val AUC')
-        axes[0].axhline(y=0.70, color='red', linestyle='--', label='benchmark (0.70)')
-        axes[0].axhline(y=0.80, color='green', linestyle='--', label='stretch (0.80)')
-    axes[0].set_title('AUC over epochs — Model 2 DNN')
-    axes[0].set_xlabel('epoch')
-    axes[0].set_ylabel('AUC')
-    axes[0].legend()
-
-    axes[1].plot(history.history['loss'], label='train loss')
-    axes[1].plot(history.history['val_loss'], label='val loss')
-    axes[1].set_title('loss over epochs — Model 2 DNN')
-    axes[1].set_xlabel('epoch')
-    axes[1].set_ylabel('loss')
-    axes[1].legend()
-
-    plt.tight_layout()
-    out_path = SAVED_MODEL_DIR / 'training_curves.png'
-    plt.savefig(out_path, dpi=150)
-    plt.close()
-    print(f'  training curves saved → {out_path}')
-
-
-def plot_confusion_matrix(y_val, y_pred):
-    """Save confusion matrix."""
-    cm = confusion_matrix(y_val, y_pred)
-    disp = ConfusionMatrixDisplay(cm, display_labels=['No Readmit', 'Readmit'])
-    fig, ax = plt.subplots(figsize=(5, 4))
-    disp.plot(ax=ax, colorbar=False)
-    ax.set_title('Confusion Matrix — Model 2 DNN')
-    plt.tight_layout()
-    out_path = SAVED_MODEL_DIR / 'confusion_matrix.png'
-    plt.savefig(out_path, dpi=150)
-    plt.close()
-    print(f'  confusion matrix saved → {out_path}')
-
-
-# ── main ───────────────────────────────────────────────────────────────────
 
 def main():
-    print('=' * 55)
-    print('  Model 2: Readmission Risk — Deep Neural Network')
-    print('=' * 55)
-    print(f'  TensorFlow : {tf.__version__}')
-    print(f'  GPU        : {len(tf.config.list_physical_devices("GPU")) > 0}')
-    print('=' * 55)
+    print('=' * 50)
+    print('  Model 2: Readmission Risk — DNN')
+    print('=' * 50)
 
-    # 1. load and prepare
+    # 1. load and prepare — identical to model 1
     X, y = load_and_prepare()
-    feature_names = X.columns.tolist()
+    feature_cols = X.columns.tolist()
 
-    # 2. split — same random_state=42 as model 1 for fair comparison
-    X_train_df, X_val_df, y_train, y_val = split_data(X, y)
-    print(f'\ntrain: {len(X_train_df):,}  |  val: {len(X_val_df):,}')
+    # 2. train/val split
+    X_train, X_val, y_train, y_val = split_data(X, y)
+    print(f'\ntrain: {len(X_train):,}  |  val: {len(X_val):,}')
 
-    # 3. impute and scale
-    # fit ONLY on training data — transform val with training stats
+    # 3. scale features — critical for DNNs, not needed for tree models
     print('\nscaling features...')
-    imputer = SimpleImputer(strategy='median')
-    X_train_imp = imputer.fit_transform(X_train_df)
-    X_val_imp = imputer.transform(X_val_df)
+    X_train_scaled, X_val_scaled, imputer, scaler = preprocess(X_train, X_val)
 
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train_imp)
-    X_val_scaled = scaler.transform(X_val_imp)
-
-    # 4. class weights
-    neg = (y_train == 0).sum()
-    pos = (y_train == 1).sum()
-    class_weight = {0: 1.0, 1: float(neg / pos)}
-    print(f'class weights: {class_weight}')
-
-    # 5. build and train
-    print('\nbuilding DNN...')
-    model = build_dnn(X_train_scaled.shape[1])
+    # 4. build and summarize the model
+    model = build_model(input_dim=X_train_scaled.shape[1])
     model.summary()
 
-    print('\ntraining...')
-    history = train_dnn(
-        model, X_train_scaled, y_train,
-        X_val_scaled, y_val, class_weight
-    )
+    # 5. train
+    print('\ntraining DNN...')
+    train_model(model, X_train_scaled, y_train.values, X_val_scaled, y_val.values)
 
     # 6. evaluate
-    y_proba = model.predict(X_val_scaled, verbose=0).flatten()
-    y_pred = (y_proba >= 0.5).astype(int)
-    dnn_auc = roc_auc_score(y_val, y_proba)
+    dnn_auc = evaluate(model, X_val_scaled, y_val)
 
+    # 7. compare against model 1
+    print(f"\n{'=' * 50}")
+    print(f"  model comparison")
+    print(f"  Model 1 XGBoost : {MODEL1_AUC:.4f}")
+    print(f"  Model 2 DNN     : {dnn_auc:.4f}")
     diff = dnn_auc - MODEL1_AUC
-    print(f"\n{'='*55}")
-    print(f'  Model 2 DNN AUC-ROC : {dnn_auc:.4f}  {"✅" if dnn_auc >= 0.70 else "❌ below 0.70"}')
-    print(f'  Model 1 XGB AUC-ROC : {MODEL1_AUC:.4f}')
-    print(f'  Difference          : {diff:+.4f} ({"DNN better" if diff > 0 else "XGBoost better"})')
-    print(f'  Benchmark           : {"✅ met (>0.70)" if dnn_auc >= 0.70 else "❌ below 0.70"}')
-    print(f'  Stretch goal        : {"🎯 met (>0.80)!" if dnn_auc >= 0.80 else "not yet (>0.80)"}')
-    print('=' * 55)
+    if diff > 0:
+        print(f"  DNN is better by {diff:.4f} — deep learning wins on this dataset")
+    else:
+        print(f"  XGBoost is better by {abs(diff):.4f} — traditional ML wins on this dataset")
+    print(f"  benchmark  : {'✅ met (>0.70)' if dnn_auc >= 0.70 else '❌ below 0.70'}")
+    print(f"  stretch    : {'✅ met (>0.80)!' if dnn_auc >= 0.80 else 'not yet (>0.80)'}")
+    print('=' * 50)
 
-    print(f'\n{classification_report(y_val, y_pred, target_names=["No Readmit", "Readmit"])}')
-
-    # 7. save all artifacts
-    # predict.py needs all four of these to work on new data
-    model.save(SAVED_MODEL_DIR / 'dnn_model.keras')
-    joblib.dump(scaler, SAVED_MODEL_DIR / 'scaler.joblib')
+    # 8. save everything predict.py needs
+    # scaler and imputer must be saved so predict.py applies the exact same transform
+    model.save(SAVED_MODEL_DIR / 'model.keras')
+    joblib.dump(feature_cols, SAVED_MODEL_DIR / 'feature_cols.joblib')
     joblib.dump(imputer, SAVED_MODEL_DIR / 'imputer.joblib')
-    joblib.dump(feature_names, SAVED_MODEL_DIR / 'feature_cols.joblib')
-    print(f'\nmodel saved → {SAVED_MODEL_DIR / "dnn_model.keras"}')
+    joblib.dump(scaler, SAVED_MODEL_DIR / 'scaler.joblib')
 
-    # 8. save metrics
-    metrics_out = {
-        'model': 'DNN',
-        'auc_roc': round(dnn_auc, 4),
-        'benchmark_met': dnn_auc >= 0.70,
-        'stretch_goal_met': dnn_auc >= 0.80,
-        'model1_auc_for_comparison': MODEL1_AUC,
-        'dnn_vs_xgboost_diff': round(diff, 4),
-        'epochs_trained': len(history.history['loss']),
-    }
-    with open(SAVED_MODEL_DIR / 'metrics.json', 'w') as f:
-        json.dump(metrics_out, f, indent=2)
-
-    # 9. visualizations
-    plot_training_curves(history)
-    plot_confusion_matrix(y_val, y_pred)
-
+    print(f'\nmodel saved        → {SAVED_MODEL_DIR / "model.keras"}')
+    print(f'feature cols saved → {SAVED_MODEL_DIR / "feature_cols.joblib"}')
+    print(f'imputer saved      → {SAVED_MODEL_DIR / "imputer.joblib"}')
+    print(f'scaler saved       → {SAVED_MODEL_DIR / "scaler.joblib"}')
     print('\n✅ model 2 training complete.')
 
 

@@ -1,38 +1,32 @@
 """
 Model 2: Readmission Risk — Deep Neural Network — Predict
 ==========================================================
-Loads trained DNN and runs predictions on raw unseen encounter data.
-Applies full preprocessing pipeline automatically — no manual steps needed.
+Loads the saved DNN model and runs predictions on raw test data.
+Handles all preprocessing internally — same pipeline as train.py.
 
 Usage (from project root):
     python models/model2_deep_learning/predict.py
 
 Input:
-    test_data/*.csv  (raw encounter data, same schema as training data)
+    test_data/  (any CSV with the same columns as patient_encounters_2023.csv)
 
 Output:
-    test_data/model2_results.csv
-
-Output columns (matches output_templates/model2_results_template.csv):
-    id | prediction | probability | confidence
+    test_data/model2_results.csv  (columns: id, prediction, probability, confidence)
 """
 
 import sys
-import os
-import joblib
 import warnings
+import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 import tensorflow as tf
 
 warnings.filterwarnings('ignore')
 
-# ── paths ──────────────────────────────────────────────────────────────────
+# this file is at models/model2_deep_learning/predict.py
+# so project root is 2 levels up
 MODEL_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = MODEL_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -44,112 +38,129 @@ from pipelines.data_pipeline import (
 )
 
 SAVED_MODEL_DIR = MODEL_DIR / 'saved_model'
-TEST_DATA_DIR = PROJECT_ROOT / 'test_data'
-OUTPUT_PATH = TEST_DATA_DIR / 'model2_results.csv'
+TEST_DIR = PROJECT_ROOT / 'test_data'
+OUTPUT_PATH = TEST_DIR / 'model2_results.csv'
+
+TARGET = 'readmission_binary'
 
 
-# ── confidence helper ──────────────────────────────────────────────────────
+def load_artifacts():
+    # load the saved keras model plus the three preprocessing artifacts
+    # all four must exist — if train.py ran successfully they will be here
+    model_path = SAVED_MODEL_DIR / 'model.keras'
+    cols_path = SAVED_MODEL_DIR / 'feature_cols.joblib'
+    imputer_path = SAVED_MODEL_DIR / 'imputer.joblib'
+    scaler_path = SAVED_MODEL_DIR / 'scaler.joblib'
 
-def probability_to_confidence(proba):
-    """
-    Convert probability to confidence score (0-1).
-    confidence = how far the probability is from 0.5 (decision boundary)
-    prob=0.95 -> confidence=0.90  (very confident)
-    prob=0.50 -> confidence=0.00  (completely uncertain)
-    """
-    return np.maximum(proba, 1 - proba)
+    for p in [model_path, cols_path, imputer_path, scaler_path]:
+        if not p.exists():
+            raise FileNotFoundError(
+                f"Missing artifact: {p}\n"
+                f"Run train.py first to generate all saved model files."
+            )
 
-
-# ── main ───────────────────────────────────────────────────────────────────
-
-def main():
-    print('=' * 55)
-    print('  Model 2: Readmission Risk — DNN Inference')
-    print('=' * 55)
-
-    # 1. check artifacts exist
-    model_path = SAVED_MODEL_DIR / 'dnn_model.keras'
-    if not model_path.exists():
-        print(f'❌ model not found at {model_path}')
-        print('   run train.py first.')
-        sys.exit(1)
-
-    # 2. load model and all preprocessing artifacts
-    print('loading model and artifacts...')
     model = tf.keras.models.load_model(model_path)
-    scaler = joblib.load(SAVED_MODEL_DIR / 'scaler.joblib')
-    imputer = joblib.load(SAVED_MODEL_DIR / 'imputer.joblib')
-    feature_cols = joblib.load(SAVED_MODEL_DIR / 'feature_cols.joblib')
-    print(f'  model loaded | expecting {len(feature_cols)} features')
+    feature_cols = joblib.load(cols_path)
+    imputer = joblib.load(imputer_path)
+    scaler = joblib.load(scaler_path)
 
-    # 3. find test data
-    print('\nlocating test data...')
-    test_csv = find_test_csv(
-        TEST_DATA_DIR,
-        expected_columns=['encounter_id', 'patient_nbr'],
+    print(f'model loaded       → {model_path}')
+    print(f'feature cols loaded → {len(feature_cols)} columns')
+    return model, feature_cols, imputer, scaler
+
+
+def load_test_data():
+    # find the test CSV in test_data/ — skips results files automatically
+    csv_path = find_test_csv(
+        TEST_DIR,
+        expected_columns=['encounter_id', 'readmitted'],
         name_hint='encounter'
     )
-    print(f'  found: {test_csv.name}')
+    print(f'test data found    → {csv_path.name}')
+    df = pd.read_csv(csv_path)
+    print(f'test shape         → {df.shape}')
+    return df
 
-    # 4. load raw data
-    raw_df = pd.read_csv(test_csv, low_memory=False)
-    print(f'  rows loaded: {raw_df.shape[0]:,}')
 
-    # 5. preprocess — same pipeline as training
-    print('\npreprocessing...')
-    df = clean_data(raw_df.copy())
+def prepare_test_data(df, feature_cols, imputer, scaler):
+    # run the exact same preprocessing as train.py
+    # order matters: clean -> engineer -> drop ids -> encode -> align -> impute -> scale
+    df = clean_data(df)
     df = engineer_features(df)
 
-    # get encounter IDs after filtering
-    encounter_ids = df['encounter_id'].values if 'encounter_id' in df.columns else np.arange(len(df))
+    # grab ids after cleaning so length matches X exactly
+    ids = df['encounter_id'].copy() if 'encounter_id' in df.columns else pd.Series(range(len(df)))
 
-    # drop target and ID columns
-    drop_cols = ['readmission_binary', 'readmitted', 'encounter_id', 'patient_nbr', 'Unnamed: 0']
-    df = df.drop(columns=[c for c in drop_cols if c in df.columns])
+    # drop target and id columns
+    df = df.drop(columns=[TARGET, 'readmitted', 'encounter_id', 'patient_nbr'], errors='ignore')
 
-    # one-hot encode remaining object columns
+    # one-hot encode any leftover object columns — same as train.py
     obj_cols = df.select_dtypes(include='object').columns.tolist()
     if obj_cols:
+        print(f'  one-hot encoding: {obj_cols}')
         df = pd.get_dummies(df, columns=obj_cols, drop_first=True)
 
+    # force numeric
     df = df.apply(pd.to_numeric, errors='coerce')
 
-    # align to training feature set
-    # add missing columns as 0, drop extras
-    for col in feature_cols:
-        if col not in df.columns:
-            df[col] = 0
-    df = df[feature_cols]
+    # align columns to exactly what the model was trained on
+    df = df.reindex(columns=feature_cols, fill_value=0)
 
-    print(f'  rows after preprocessing: {len(df):,}')
-
-    # 6. apply saved imputer and scaler
-    # MUST use saved artifacts — not fit new ones on test data
+    # apply the saved imputer and scaler — must use transform not fit_transform
+    # fitting on test data would be data leakage
     X = imputer.transform(df)
     X = scaler.transform(X)
 
-    # 7. predict
-    print('running predictions...')
-    probabilities = model.predict(X, verbose=0).flatten()
-    predictions = (probabilities >= 0.5).astype(int)
-    confidence = probability_to_confidence(probabilities)
+    print(f'  features after alignment: {df.shape[1]}')
+    return X, ids
 
-    # 8. build output — must match output_templates/model2_results_template.csv
+
+def predict(model, X, ids):
+    # keras returns shape (n, 1) so flatten to 1d
+    proba = model.predict(X, verbose=0).flatten()
+    preds = (proba >= 0.5).astype(int)
+
+    # confidence = how far the probability is from 0.5
+    # 1.0 = completely certain, 0.0 = totally uncertain
+    confidence = np.abs(proba - 0.5) * 2
+
     results = pd.DataFrame({
-        'id': encounter_ids[:len(predictions)],
-        'prediction': predictions,
-        'probability': np.round(probabilities, 4),
+        'id': ids.values,
+        'prediction': preds,
+        'probability': np.round(proba, 4),
         'confidence': np.round(confidence, 4),
     })
 
-    # 9. save
-    TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return results
+
+
+def main():
+    print('=' * 50)
+    print('  Model 2: Readmission Risk — DNN Predict')
+    print('=' * 50)
+
+    # 1. load saved model and all preprocessing artifacts
+    model, feature_cols, imputer, scaler = load_artifacts()
+
+    # 2. load raw test data
+    df = load_test_data()
+
+    # 3. run through the same preprocessing pipeline as training
+    print('\npreparing test data...')
+    X, ids = prepare_test_data(df, feature_cols, imputer, scaler)
+
+    # 4. generate predictions
+    print('\nrunning predictions...')
+    results = predict(model, X, ids)
+
+    # 5. save output to test_data/model2_results.csv
+    TEST_DIR.mkdir(parents=True, exist_ok=True)
     results.to_csv(OUTPUT_PATH, index=False)
 
-    print(f'\n✅ predictions saved → {OUTPUT_PATH}')
-    print(f'   total predictions  : {len(results):,}')
-    print(f'   predicted readmit  : {predictions.sum():,} ({predictions.mean()*100:.1f}%)')
-    print(f'   avg confidence     : {confidence.mean():.3f}')
+    print(f'\nresults saved → {OUTPUT_PATH}')
+    print(f'total predictions : {len(results)}')
+    print(f'predicted readmit : {results["prediction"].sum()} ({results["prediction"].mean()*100:.1f}%)')
+    print('\n✅ model 2 prediction complete.')
 
 
 if __name__ == '__main__':
