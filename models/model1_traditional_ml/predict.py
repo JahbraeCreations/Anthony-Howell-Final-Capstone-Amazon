@@ -1,32 +1,31 @@
 """
 Model 1: Readmission Risk — Traditional ML — Predict
 =====================================================
-Loads trained model and runs predictions on raw unseen encounter data.
-Applies full preprocessing pipeline automatically — no manual steps needed.
+Loads the saved model and runs predictions on raw test data.
+Handles all preprocessing internally — test data comes in messy,
+predictions go out clean.
 
 Usage (from project root):
     python models/model1_traditional_ml/predict.py
 
 Input:
-    test_data/*.csv  (raw encounter data, same schema as training data)
+    test_data/  (any CSV with the same columns as patient_encounters_2023.csv)
 
 Output:
-    test_data/model1_results.csv
-
-Output columns (matches output_templates/model1_results_template.csv):
-    id | prediction | probability | confidence
+    test_data/model1_results.csv  (columns: id, prediction, probability, confidence)
 """
 
 import sys
-import joblib
 import warnings
+import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
 
 warnings.filterwarnings('ignore')
 
-# ── paths ──────────────────────────────────────────────────────────────────
+# this file is at models/model1_traditional_ml/predict.py
+# so project root is 2 levels up
 MODEL_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = MODEL_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -34,114 +33,127 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from pipelines.data_pipeline import (
     clean_data,
     engineer_features,
-    load_pipeline_artifacts,
     find_test_csv,
 )
 
 SAVED_MODEL_DIR = MODEL_DIR / 'saved_model'
-TEST_DATA_DIR = PROJECT_ROOT / 'test_data'
-OUTPUT_PATH = TEST_DATA_DIR / 'model1_results.csv'
+TEST_DIR = PROJECT_ROOT / 'test_data'
+OUTPUT_PATH = TEST_DIR / 'model1_results.csv'
+
+TARGET = 'readmission_binary'
 
 
-# ── confidence helper ──────────────────────────────────────────────────────
-
-def probability_to_confidence(proba):
-    """
-    Convert raw probability to confidence score (0-1).
-    Confidence = how far the probability is from the decision boundary (0.5).
-
-    prob = 0.95 -> confidence = 0.90  (very confident readmission)
-    prob = 0.50 -> confidence = 0.00  (completely uncertain)
-    prob = 0.05 -> confidence = 0.90  (very confident no readmission)
-    """
-    return np.maximum(proba, 1 - proba)
-
-
-# ── main ───────────────────────────────────────────────────────────────────
-
-def main():
-    print('=' * 55)
-    print('  Model 1: Readmission Risk — Inference')
-    print('=' * 55)
-
-    # 1. load saved model and feature column list
+def load_artifacts():
+    # load the saved model and the feature column list from training
     model_path = SAVED_MODEL_DIR / 'model.joblib'
+    cols_path = SAVED_MODEL_DIR / 'feature_cols.joblib'
+
     if not model_path.exists():
-        print(f'❌ model not found at {model_path}')
-        print('   run train.py first to generate the model.')
-        sys.exit(1)
+        raise FileNotFoundError(
+            f"No saved model found at {model_path}\n"
+            f"Run train.py first to generate the model."
+        )
+    if not cols_path.exists():
+        raise FileNotFoundError(
+            f"No feature cols found at {cols_path}\n"
+            f"Run train.py first to generate feature_cols.joblib."
+        )
 
-    print('loading model...')
     model = joblib.load(model_path)
-    feature_cols = joblib.load(SAVED_MODEL_DIR / 'feature_cols.joblib')
-    print(f'  model loaded | expecting {len(feature_cols)} features')
+    feature_cols = joblib.load(cols_path)
+    print(f'model loaded      → {model_path}')
+    print(f'feature cols loaded → {len(feature_cols)} columns')
+    return model, feature_cols
 
-    # 2. find test data
-    print('\nlocating test data...')
-    test_csv = find_test_csv(
-        TEST_DATA_DIR,
-        expected_columns=['encounter_id', 'patient_nbr'],
+
+def load_test_data():
+    # find the test CSV in test_data/ — uses find_test_csv from the pipeline
+    # which filters out results files and looks for encounter-shaped data
+    csv_path = find_test_csv(
+        TEST_DIR,
+        expected_columns=['encounter_id', 'readmitted'],
         name_hint='encounter'
     )
-    print(f'  found: {test_csv.name}')
+    print(f'test data found   → {csv_path.name}')
+    df = pd.read_csv(csv_path)
+    print(f'test shape        → {df.shape}')
+    return df
 
-    # 3. load raw data
-    raw_df = pd.read_csv(test_csv, low_memory=False)
-    print(f'  rows loaded: {raw_df.shape[0]:,}')
 
-    # save encounter_id before preprocessing drops/filters rows
-    # use it to build the output — need to match predictions to IDs
-    original_ids = raw_df['encounter_id'].copy() if 'encounter_id' in raw_df.columns else None
+def prepare_test_data(df, feature_cols):
+    # run the same cleaning and feature engineering as train.py
+    df = clean_data(df)
+    df = engineer_features(df)
 
-    # 4. preprocess using the same pipeline as training
-    # preprocess_encounters_for_prediction handles:
-    #   - clean_data() and engineer_features()
-    #   - aligns columns to exactly what the model was trained on
-    #   - adds missing columns as 0, drops unknown extras
-    print('\npreprocessing...')
-    df_clean = clean_data(raw_df)
-    df_clean = engineer_features(df_clean)
-    df_clean = df_clean.drop(columns=['readmission_binary'], errors='ignore')
-    obj_cols = df_clean.select_dtypes(include='object').columns.tolist()
+    # grab ids after cleaning so the length matches X exactly
+    ids = df['encounter_id'].copy() if 'encounter_id' in df.columns else pd.Series(range(len(df)))
+
+    # drop the target if it somehow exists in test data
+    df = df.drop(columns=[TARGET, 'readmitted'], errors='ignore')
+    df = df.drop(columns=['encounter_id', 'patient_nbr'], errors='ignore')
+
+    # one-hot encode any remaining object columns — same as train.py
+    obj_cols = df.select_dtypes(include='object').columns.tolist()
     if obj_cols:
-        df_clean = pd.get_dummies(df_clean, columns=obj_cols, drop_first=True)
-    df_clean = df_clean.apply(pd.to_numeric, errors='coerce')
-    for col in feature_cols:
-        if col not in df_clean.columns:
-            df_clean[col] = 0
-    X = df_clean[feature_cols]
-    print(f'  rows after preprocessing: {X.shape[0]:,}')
+        print(f'  one-hot encoding: {obj_cols}')
+        df = pd.get_dummies(df, columns=obj_cols, drop_first=True)
 
-    # get encounter IDs from cleaned df (after filtering deceased etc.)
-    if 'encounter_id' in df_clean.columns:
-        encounter_ids = df_clean['encounter_id'].values
-    elif original_ids is not None:
-        encounter_ids = original_ids.iloc[:len(X)].values
-    else:
-        encounter_ids = np.arange(len(X))
+    # force numeric
+    df = df.apply(pd.to_numeric, errors='coerce')
 
-    # 5. predict
-    print('running predictions...')
-    probabilities = model.predict_proba(X)[:, 1]
-    predictions = (probabilities >= 0.5).astype(int)
-    confidence = probability_to_confidence(probabilities)
+    # align to training columns exactly
+    df = df.reindex(columns=feature_cols, fill_value=0)
 
-    # 6. build output — must exactly match output_templates/model1_results_template.csv
+    print(f'  features after alignment: {df.shape[1]}')
+    return df, ids
+
+
+def predict(model, X, ids):
+    # run predictions and build the output dataframe
+    proba = model.predict_proba(X)[:, 1]
+    preds = model.predict(X)
+
+    # confidence = how far the probability is from 0.5
+    # 1.0 = completely certain, 0.0 = totally uncertain
+    confidence = np.abs(proba - 0.5) * 2
+
     results = pd.DataFrame({
-        'id': encounter_ids,
-        'prediction': predictions,
-        'probability': np.round(probabilities, 4),
+        'id': ids.values,
+        'prediction': preds.astype(int),
+        'probability': np.round(proba, 4),
         'confidence': np.round(confidence, 4),
     })
 
-    # 7. save
-    TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return results
+
+
+def main():
+    print('=' * 50)
+    print('  Model 1: Readmission Risk — Predict')
+    print('=' * 50)
+
+    # 1. load saved model and feature columns
+    model, feature_cols = load_artifacts()
+
+    # 2. load raw test data
+    df = load_test_data()
+
+    # 3. run through the same preprocessing pipeline as training
+    print('\npreparing test data...')
+    X, ids = prepare_test_data(df, feature_cols)
+
+    # 4. generate predictions
+    print('\nrunning predictions...')
+    results = predict(model, X, ids)
+
+    # 5. save output to test_data/model1_results.csv
+    TEST_DIR.mkdir(parents=True, exist_ok=True)
     results.to_csv(OUTPUT_PATH, index=False)
 
-    print(f'\n✅ predictions saved → {OUTPUT_PATH}')
-    print(f'   total predictions  : {len(results):,}')
-    print(f'   predicted readmit  : {predictions.sum():,} ({predictions.mean()*100:.1f}%)')
-    print(f'   avg confidence     : {confidence.mean():.3f}')
+    print(f'\nresults saved → {OUTPUT_PATH}')
+    print(f'total predictions : {len(results)}')
+    print(f'predicted readmit : {results["prediction"].sum()} ({results["prediction"].mean()*100:.1f}%)')
+    print('\n✅ model 1 prediction complete.')
 
 
 if __name__ == '__main__':

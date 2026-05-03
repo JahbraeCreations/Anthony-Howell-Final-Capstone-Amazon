@@ -266,6 +266,17 @@ def engineer_features(df):
     visit_cols = ['number_outpatient', 'number_emergency', 'number_inpatient']
     if all(col in df.columns for col in visit_cols):
         df['total_prior_visits'] = df[visit_cols].sum(axis=1)
+        # drop outpatient after combining — weakest signal, already in total_prior_visits
+        df = df.drop(columns=['number_outpatient'], errors='ignore')
+
+    # binary flag for high-risk prior inpatient history
+    # 2+ inpatient visits is a strong clinical threshold for readmission risk
+    if 'number_inpatient' in df.columns:
+        df['high_risk_prior'] = (df['number_inpatient'] >= 2).astype(int)
+
+    # length of stay x inpatient history — long stays + repeat admissions = very high risk
+    if 'time_in_hospital' in df.columns and 'number_inpatient' in df.columns:
+        df['los_x_inpatient'] = df['time_in_hospital'] * df['number_inpatient']
 
     # insulin flag — must be before medication encoding or insulin is already numeric
     if 'insulin' in df.columns:
