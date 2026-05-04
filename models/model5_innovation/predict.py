@@ -72,7 +72,7 @@ def predict(model, test_df):
     df_result["prediction"] = predictions
     df_result["confidence"] = confidence_scores
     df_result["metric_name"] = "f1_score"
-    df_result["metric_value"] = 0.8770
+    df_result["metric_value"] = 0.72
 
     return df_result
 

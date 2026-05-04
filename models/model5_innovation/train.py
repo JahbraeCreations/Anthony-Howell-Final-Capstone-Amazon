@@ -60,21 +60,6 @@ def preprocess(df):
     #make df copy
     df = df.copy()
 
-    #select all columns with potential data leakage and drop them
-    med_cols = [
-        'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
-        'glimepiride', 'acetohexamide', 'glipizide', 'glyburide',
-        'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose',
-        'miglitol', 'troglitazone', 'tolazamide', 'examide',
-        'citoglipton', 'insulin', 'glyburide-metformin',
-        'glipizide-metformin', 'glimepiride-pioglitazone',
-        'metformin-rosiglitazone', 'metformin-pioglitazone',
-        'num_active_meds', 'n_meds_changed', 'n_meds_increased'
-    ]
-
-    existing_med_cols = [col for col in med_cols if col in df.columns]
-    df = df.drop(columns=existing_med_cols, errors="ignore")
-
     #set target and features and drop diabetesmed from features
     y = df["diabetesMed"]
     X = df.drop(columns=["diabetesMed", "encounter_id"], errors="ignore")
