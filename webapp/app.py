@@ -155,7 +155,50 @@ elif model_choice == "Model 3: CNN (Image Classification)":
     #         st.write(f"Confidence: {confidence:.2%}")
     # ---- END PATTERN ----
 
-    st.info("Not yet implemented — add image upload and classification here.")
+    # ---- INTEGRATION PATTERN (uncomment and adapt) ----
+  
+    @st.cache_resource
+    def load_model3():
+        import tensorflow as tf
+
+        model_url = "https://huggingface.co/jfranklingoff/Capstone-Project-CNN-Model/resolve/main/cnn_model.keras"
+
+        local_model_path = tf.keras.utils.get_file(
+            "cnn_model.keras",
+            origin=model_url
+        )
+
+        return tf.keras.models.load_model(local_model_path)
+    
+    model = load_model3()
+    
+    uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+    if uploaded_file is not None:
+        from PIL import Image
+        import numpy as np
+    
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image", use_container_width=True)
+    
+        # Preprocess — must match your training preprocessing
+        img_resized = image.resize((224, 224))
+        img_array = np.array(img_resized) / 255.0
+        img_batch = np.expand_dims(img_array, axis=0)
+    
+        if st.button("Classify"):
+            prediction = model.predict(img_batch)
+            confidence = float(prediction.max())
+            predicted_class = "Positive" if prediction[0][0] > 0.5 else "Negative"
+            st.success(f"Prediction: {predicted_class}")
+            st.write(f"Confidence: {confidence:.2%}")
+    # ---- END PATTERN ----
+
+    st.info("""
+            Add a retinal scan image file by dragging and dropping a file, or select a file using the Browse files button.
+
+            Once uploaded, your selected image will be displayed. Click Classify to predict a classification with confidence score.
+            """
+            )
 
 elif model_choice == "Model 4: NLP (Text Classification)":
     st.header("Model 4: NLP — Text Classification")
