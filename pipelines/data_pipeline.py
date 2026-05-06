@@ -726,6 +726,7 @@ def engineer_features_model_5(df):
     bool_cols = df.select_dtypes(include='bool').columns
     df[bool_cols] = df[bool_cols].astype(int)
 
+    #drop columns that will cause data leakage in the model
     df = df.drop(columns=['metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
         'glimepiride', 'acetohexamide', 'glipizide', 'glyburide',
         'tolbutamide', 'pioglitazone', 'rosiglitazone', 'acarbose',

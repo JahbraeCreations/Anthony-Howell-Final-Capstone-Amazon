@@ -92,7 +92,7 @@ def main():
     #run the prediction
     results = predict(model, test_df)
 
-    #sabve the results
+    #save the results
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     results.to_csv(OUTPUT_FILE, index=False)
 
