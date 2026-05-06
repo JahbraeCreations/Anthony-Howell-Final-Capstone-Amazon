@@ -296,10 +296,19 @@ elif model_choice == "Model 5: XGBoost":
 
         age = age_options[age_label]
 
-        time_in_hospital = st.number_input("Time in Hospital", min_value=1, value=14)
-        num_lab_procedures = st.number_input("Number of Lab Procedures", min_value=1, value=132)
-        #need to figure differences between number lab procedures and number of procedures
-        num_procedures = st.number_input("Number of Procedures", min_value=0, value=6)
+        weight_checked = st.selectbox(
+            "Weight Recorded?",
+            ["No", "Yes"]
+        )
+
+        weight_checked = 1 if weight_checked == "Yes" else 0
+
+        number_emergency = st.number_input("Number of Emergency Visits", min_value=0, max_value=76, value=38)
+
+        number_diagnoses = st.number_input("Number of Diagnoses", min_value=0, max_value=16, value=8)
+
+        
+        
 
         diag_1 = st.selectbox(
             "Primary Diagnosis Category",
@@ -313,6 +322,45 @@ elif model_choice == "Model 5: XGBoost":
                 "respiratory"
             ]
         )
+
+        admission_source = st.selectbox(
+            "Admission Source",
+            [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 17, 20, 22, 25]
+        )
+
+        max_glu_options = {
+            "Not Tested": -1,
+            "Normal": 0,
+            "High (>200 mg/dL)": 1,
+            "Very High (>300 mg/dL)": 2
+        }
+
+        max_glu_label = st.selectbox(
+            "Maximum Glucose Serum Result",
+            list(max_glu_options.keys())
+        )
+
+        max_glu_serum = max_glu_options[max_glu_label]
+
+
+        
+
+    with col2:
+        
+        gender = st.selectbox("Gender", ["Male", "Female"])
+
+        gender_encoded = 0 if gender == "Male" else 1
+
+        readmission_binary = st.selectbox(
+            "Readmitted Previously?",
+            ["No", "Yes"]
+        )
+
+        readmission_binary = 1 if readmission_binary == "Yes" else 0
+
+        number_inpatient = st.number_input("Number of Inpatient Visits", min_value=0, max_value=21, value=11)
+        
+        num_lab_procedures = st.number_input("Number of Lab Procedures", min_value=1, max_value=132, value=65)
 
         diag_2 = st.selectbox(
             "Secondary Diagnosis Category",
@@ -331,13 +379,12 @@ elif model_choice == "Model 5: XGBoost":
             "Admission Type",
             [2, 3, 4, 5, 6, 7, 8]
         )
-        
 
-    with col2:
-        num_medications = st.number_input("Number of Medications", min_value=1, value=81)
-        number_outpatient = st.number_input("Number of Outpatient Visits", min_value=0, value=42)
-        number_emergency = st.number_input("Number of Emergency Visits", min_value=0, value=76)
-        number_inpatient = st.number_input("Number of Inpatient Visits", min_value=0, value=21)
+
+
+    with col3:
+        
+        
 
         race = st.selectbox(
             "Race",
@@ -349,6 +396,12 @@ elif model_choice == "Model 5: XGBoost":
             ]
         )
 
+        time_in_hospital = st.number_input("Days in Hospital", min_value=1, max_value=14, value=7)
+
+        number_outpatient = st.number_input("Number of Outpatient Visits", min_value=0, max_value=42, value=21)
+
+        num_procedures = st.number_input("Number of Medical Procedures", min_value=0, max_value=6, value=3)
+        
         diag_3 = st.selectbox(
             "Third Diagnosis Category",
             [
@@ -367,22 +420,7 @@ elif model_choice == "Model 5: XGBoost":
             [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16, 17, 18, 22, 23, 24, 25, 27, 28]
         )
 
-    with col3:
-        number_diagnoses = st.number_input("Number of Diagnoses", min_value=0, value=16)
-        
-        max_glu_options = {
-            "Not Tested": -1,
-            "Normal": 0,
-            "High (>200 mg/dL)": 1,
-            "Very High (>300 mg/dL)": 2
-        }
 
-        max_glu_label = st.selectbox(
-            "Maximum Glucose Serum Result",
-            list(max_glu_options.keys())
-        )
-
-        max_glu_serum = max_glu_options[max_glu_label]
 
         a1c_options = {
             "Not Tested": -1,
@@ -398,28 +436,11 @@ elif model_choice == "Model 5: XGBoost":
 
         A1Cresult = a1c_options[a1c_label]
 
-        gender = st.selectbox("Gender", ["Male", "Female"])
+        
 
-        gender_encoded = 0 if gender == "Male" else 1
+        
 
-        weight_checked = st.selectbox(
-            "Weight Recorded?",
-            ["No", "Yes"]
-        )
 
-        weight_checked = 1 if weight_checked == "Yes" else 0
-
-        readmission_binary = st.selectbox(
-            "Readmitted Previously?",
-            ["No", "Yes"]
-        )
-
-        readmission_binary = 1 if readmission_binary == "Yes" else 0
-
-        admission_source = st.selectbox(
-            "Admission Source",
-            [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 17, 20, 22, 25]
-        )
 
 
 
@@ -433,7 +454,6 @@ elif model_choice == "Model 5: XGBoost":
         "time_in_hospital": time_in_hospital,
         "num_lab_procedures": num_lab_procedures,
         "num_procedures": num_procedures,
-        "num_medications": num_medications,
         "number_outpatient": number_outpatient,
         "number_emergency": number_emergency,
         "number_inpatient": number_inpatient,
@@ -489,27 +509,25 @@ elif model_choice == "Model 5: XGBoost":
     input_df = input_df[list(model.feature_names_in_)]
 
     if st.button("Predict Diabetes Medication Need"):
-        prediction = model.predict(input_df)[0]
+        confidence = model.predict_proba(input_df)[:, 1][0]
 
-        if hasattr(model, "predict_proba"):
-            confidence = model.predict_proba(input_df)[:, 1][0]
-        else:
-            confidence = None
+        threshold = 0.70
+
+        prediction =1 if confidence >= threshold else 0
 
         if prediction == 1:
             st.success("Prediction: Patient is likely to need diabetes medication.")
         else:
             st.warning("Prediction: Patient is not likely to need diabetes medication.")
 
-        if confidence is not None:
-            st.write(f"Confidence: {confidence:.2%}")
+        st.write(f"confidence: {confidence:.2%}")
 
 
 
 elif model_choice == "Our Team":
     st.header("Our Team")
     st.write("Please meet the members of Aegis Health Strategy")
-    st.info("Clifton Rand: Cliff is our data engineer lead as well as our Model 5 lead")
-    st.info("Jesse Goff: Jesse is our CNN model lead as well as our Streamlit lead")
-    st.info("Sean McManus: Sean is our Traditional ML lead as well as our Presentation lead")
-    st.info("Brodie Ellis: Brodie is our NLP lead")
+    st.info("Clifton Rand: Cliff is our Data Engineer and Model 5 lead")
+    st.info("Jesse Goff: Jesse is our Model 3 and Presentation lead")
+    st.info("Sean McManus: Sean is our Model 1 lead")
+    st.info("Brodie Ellis: Brodie is our Model 4 lead")

@@ -81,6 +81,15 @@ def train_model(X_train, y_train):
     """Train an XGBoost classifier."""
     from xgboost import XGBClassifier
 
+    
+    """from sklearn.utils.class_weight import compute_sample_weight"""
+
+    """sample_weights = compute_sample_weight(
+        class_weight="balanced",
+        y=y_train
+    )"""
+
+
     model = XGBClassifier(
         n_estimators=200,
         max_depth=6,
@@ -89,8 +98,9 @@ def train_model(X_train, y_train):
         colsample_bytree=0.8,
         objective="binary:logistic",
         eval_metric="logloss",
-        random_state=42
+        random_state=42 
     )
+    
     model.fit(X_train, y_train)
     return model
 
@@ -105,9 +115,20 @@ def evaluate_model(model, X_val, y_val):
     """
     from sklearn.metrics import accuracy_score, f1_score, classification_report
 
-    y_pred = model.predict(X_val)
+    
+    
+
+    #
+    y_probs = model.predict_proba(X_val)[:, 1]
+
+    threshold = 0.70
+
+    y_pred = (y_probs >= threshold).astype(int)
+
     accuracy = accuracy_score(y_val, y_pred)
     f1 = f1_score(y_val, y_pred)
+    f1_macro = f1_score(y_val, y_pred, average="macro")
+    f1_weighted = f1_score(y_val, y_pred, average="weighted")
     baseline = max(y_val.mean(), 1 - y_val.mean())
 
     print("=== Innovation Model Evaluation ===")
@@ -166,6 +187,36 @@ def main():
     evaluate_model(model, X_val, y_val)
     
     # 5. Save
+    
+    print(model.feature_names_in_)
+    
+    #temp code
+
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    feature_importance = pd.DataFrame({
+        "feature": X_train.columns,
+        "importance": model.feature_importances_
+    })
+
+    # sort highest to lowest
+    feature_importance = feature_importance.sort_values(
+        by="importance",
+        ascending=False
+    )
+
+    # show top 15 predictors
+    top_features = feature_importance.head(75)
+
+    plt.figure(figsize=(12, 8))
+    plt.barh(top_features["feature"], top_features["importance"])
+    plt.xlabel("Importance Score")
+    plt.ylabel("Feature")
+    plt.title("Top 15 Strongest Predictors for Diabetes Medication Need")
+    plt.gca().invert_yaxis()
+    plt.tight_layout()
+    plt.show()
 
     save_model(model)
 

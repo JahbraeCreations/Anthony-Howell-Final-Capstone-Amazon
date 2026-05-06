@@ -735,6 +735,6 @@ def engineer_features_model_5(df):
         'metformin-rosiglitazone', 'metformin-pioglitazone',
         'num_active_meds', 'n_meds_changed', 'n_meds_increased',
         'change', 'max_glu_serum_tested', 'A1Cresult_tested', 'complexity_score',
-        'on_insulin', 'inpatient_x_medications', 'total_prior_visits'], errors="ignore")
+        'on_insulin', 'inpatient_x_medications', 'total_prior_visits', 'num_medications'], errors="ignore")
 
     return df
