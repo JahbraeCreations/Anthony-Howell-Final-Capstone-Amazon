@@ -207,26 +207,55 @@ elif model_choice == "Model 3: CNN (Image Classification)":
 elif model_choice == "Model 4: NLP (Text Classification)":
     st.header("Model 4: NLP — Text Classification")
 
-    # ---- INTEGRATION PATTERN (uncomment and adapt) ----
-    # @st.cache_resource
-    # def load_model4():
-    #     import joblib
-    #     model = joblib.load("models/model4_nlp_classification/saved_model/model.joblib")
-    #     vectorizer = joblib.load("models/model4_nlp_classification/saved_model/vectorizer.joblib")
-    #     return model, vectorizer
-    #
-    # model, vectorizer = load_model4()
-    #
-    # user_text = st.text_area("Enter text to classify:", height=150)
-    # if st.button("Classify") and user_text:
-    #     text_vectorized = vectorizer.transform([user_text])
-    #     prediction = model.predict(text_vectorized)[0]
-    #     confidence = model.predict_proba(text_vectorized).max()
-    #     st.success(f"Predicted Category: {prediction}")
-    #     st.write(f"Confidence: {confidence:.2%}")
-    # ---- END PATTERN ----
+    import re
 
-    st.info("Not yet implemented — add text input and classification here.")
+    # Must match the cleaning used in models/model4_nlp_classification/predict.py
+    CONTRACTIONS = [
+        (r"won't", "will not"),
+        (r"can't", "can not"),
+        (r"shan't", "shall not"),
+        (r"n't", " not"),
+        (r"'re", " are"),
+        (r"'ve", " have"),
+        (r"'ll", " will"),
+        (r"'d", " would"),
+        (r"'m", " am"),
+        (r"it's", "it is"),
+        (r"that's", "that is"),
+        (r"what's", "what is"),
+        (r"there's", "there is"),
+    ]
+
+    def clean_text(text):
+        if not isinstance(text, str) or text.strip() == '':
+            return ''
+        text = text.lower()
+        for pat, repl in CONTRACTIONS:
+            text = re.sub(pat, repl, text)
+        text = re.sub(r'<.*?>', ' ', text)
+        text = re.sub(r'http\S+|www\.\S+', '', text)
+        text = re.sub(r'%u[0-9a-fA-F]{4}', ' ', text)
+        text = re.sub(r'[^a-z0-9\s]', ' ', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+    @st.cache_resource
+    def load_model4():
+        model_dir = PROJECT_ROOT / "models" / "model4_nlp_classification" / "saved_model"
+        model = joblib.load(model_dir / "model.joblib")
+        vectorizer = joblib.load(model_dir / "tfidf_vectorizer.joblib")
+        return model, vectorizer
+
+    model, vectorizer = load_model4()
+
+    user_text = st.text_area("Enter patient medication feedback to classify:", height=150)
+    if st.button("Classify") and user_text:
+        cleaned = clean_text(user_text)
+        text_vectorized = vectorizer.transform([cleaned])
+        prediction = model.predict(text_vectorized)[0]
+        confidence = model.predict_proba(text_vectorized).max()
+        st.success(f"Predicted Effectiveness: {prediction}")
+        st.write(f"Confidence: {confidence:.2%}")
 
 elif model_choice == "Model 5: XGBoost":
     st.header("Model 5: XGBoost Diabetes Medication Predictor")
