@@ -81,6 +81,15 @@ def train_model(X_train, y_train):
     """Train an XGBoost classifier."""
     from xgboost import XGBClassifier
 
+    
+    """from sklearn.utils.class_weight import compute_sample_weight"""
+
+    """sample_weights = compute_sample_weight(
+        class_weight="balanced",
+        y=y_train
+    )"""
+
+    #trains xgboost model
     model = XGBClassifier(
         n_estimators=200,
         max_depth=6,
@@ -89,8 +98,9 @@ def train_model(X_train, y_train):
         colsample_bytree=0.8,
         objective="binary:logistic",
         eval_metric="logloss",
-        random_state=42
+        random_state=42 
     )
+    
     model.fit(X_train, y_train)
     return model
 
@@ -105,26 +115,59 @@ def evaluate_model(model, X_val, y_val):
     """
     from sklearn.metrics import accuracy_score, f1_score, classification_report
 
-    y_pred = model.predict(X_val)
+    
+    
+
+    #get probability scores for class 1, needs medication and allows us to use a threshold
+    y_probs = model.predict_proba(X_val)[:, 1]
+
+    # Custom threshold chosen after testing multiple values
+    # 0.70 gave the best balance between precision and recall
+    threshold = 0.70
+
+    # Convert probabilities into final predictions using custom threshold
+    y_pred = (y_probs >= threshold).astype(int)
+
+    #scores
+    # Standard accuracy score
     accuracy = accuracy_score(y_val, y_pred)
+    
+    # Binary F1 score (focuses on positive class only)
+    # Useful for measuring how well we predict medication need
     f1 = f1_score(y_val, y_pred)
+
+    # Macro F1 score (treats both classes equally)
+    # Best for measuring class balance
+    f1_macro = f1_score(y_val, y_pred, average="macro")
+
+    # Weighted F1 score (accounts for class imbalance)
+    f1_weighted = f1_score(y_val, y_pred, average="weighted")
+
+    # Naive baseline accuracy (predicting only the majority class)
+    # Used to compare if the model adds value over a simple guess
     baseline = max(y_val.mean(), 1 - y_val.mean())
 
+    # Print evaluation results
     print("=== Innovation Model Evaluation ===")
     print(f"Accuracy: {accuracy:.4f}")
     print(f"F1 Score: {f1:.4f}")
     print(f"Naive baseline accuracy: {baseline:.4f}")
+    
+    # Print detailed per-class performance metrics
     print("\nClassification Report:")
     print(classification_report(y_val, y_pred))
 
+     # Explain why F1 was selected
     print("\nChosen success metric: F1 Score")
     print("It balances precision and recall for identifying patients likely")
     print("to require diabetes medication.")
 
+    # Explain business value
     print("\nValue proposition:")
     print("This model helps estimate diabetes medication need using non-medication")
     print("clinical features, which could support early intervention and care planning.")
 
+    # Explain potential ROI
     print("\nCost-benefit estimate:")
     print("If providers can identify likely medication need earlier, they may improve")
     print("care coordination and reduce delays in treatment decisions.")
@@ -140,6 +183,7 @@ def save_model(model):
     """
     import joblib
 
+    #saves model
     SAVED_MODEL_DIR.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, SAVED_MODEL_DIR / "model.joblib")
 
@@ -157,7 +201,7 @@ def main():
     X_train, X_val, y_train, y_val = preprocess(df)
 
     # 3. Train baseline (work was done seperately to determine that this was best model)
-    #i evaluated decision tree, random forest, xgboost, and logistic regression
+    #i evaluated decision tree, random forest, xgboost, and logistic regression, and xgboost was the best
     
     model = train_model(X_train, y_train)
 

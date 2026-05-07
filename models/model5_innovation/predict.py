@@ -55,7 +55,9 @@ def predict(model, test_df):
         'citoglipton', 'insulin', 'glyburide-metformin',
         'glipizide-metformin', 'glimepiride-pioglitazone',
         'metformin-rosiglitazone', 'metformin-pioglitazone',
-        'num_active_meds', 'n_meds_changed', 'n_meds_increased'
+        'num_active_meds', 'n_meds_changed', 'n_meds_increased',
+        'change', 'max_glu_serum_tested', 'A1Cresult_tested', 'complexity_score',
+        'on_insulin', 'inpatient_x_medications', 'total_prior_visits', 'num_medications'
     ]
 
     existing_med_cols = [col for col in med_cols if col in df.columns]
@@ -65,14 +67,17 @@ def predict(model, test_df):
     df = df.drop(columns=["diabetesMed", "encounter_id"], errors="ignore")
 
 
-    #use model to make prediction and confidence score
+    # use model to make probability prediction
     confidence_scores = model.predict_proba(df)[:, 1]
-    predictions = model.predict(df)
+
+    #use threshold established in training
+    threshold = 0.70
+    predictions = (confidence_scores >= threshold).astype(int)
 
     df_result["prediction"] = predictions
     df_result["confidence"] = confidence_scores
     df_result["metric_name"] = "f1_score"
-    df_result["metric_value"] = 0.72
+    df_result["metric_value"] = 0.82
 
     return df_result
 
@@ -87,7 +92,7 @@ def main():
     #run the prediction
     results = predict(model, test_df)
 
-    #sabve the results
+    #save the results
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     results.to_csv(OUTPUT_FILE, index=False)
 
