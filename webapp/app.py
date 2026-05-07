@@ -614,6 +614,74 @@ div.stCodeBlock code {
     font-size: 0.82rem !important;
     line-height: 1.65 !important;
 }
+
+/* =========================================
+   GLOBAL SCROLLBAR STYLING (HIGH CONTRAST)
+   ========================================= */
+/* For Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.3);
+}
+
+/* For Chrome, Edge, and Safari */
+::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.3) !important;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #38bdf8 !important;
+    border-radius: 4px;
+    border: 2px solid rgba(15, 23, 42, 1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #7dd3fc !important;
+}
+
+[data-testid="stAppViewContainer"] ::-webkit-scrollbar-thumb,
+[data-testid="stSidebar"] ::-webkit-scrollbar-thumb,
+div.stCodeBlock div ::-webkit-scrollbar-thumb {
+    background-color: #38bdf8 !important;
+}
+
+/* ── Main page scroll container (primary fix) ────────────────────── */
+section[data-testid="stMain"] {
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.3) !important;
+}
+section[data-testid="stMain"]::-webkit-scrollbar {
+    width: 8px !important;
+    height: 8px !important;
+}
+section[data-testid="stMain"]::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.3) !important;
+    border-radius: 4px !important;
+}
+section[data-testid="stMain"]::-webkit-scrollbar-thumb {
+    background-color: #38bdf8 !important;
+    border-radius: 4px !important;
+    border: 2px solid rgba(15, 23, 42, 1) !important;
+}
+section[data-testid="stMain"]::-webkit-scrollbar-thumb:hover {
+    background-color: #7dd3fc !important;
+}
+/* Fallback: target the inner block container as well */
+[data-testid="stAppViewBlockContainer"] {
+    scrollbar-width: thin !important;
+    scrollbar-color: #38bdf8 rgba(15, 23, 42, 0.3) !important;
+}
+[data-testid="stAppViewBlockContainer"]::-webkit-scrollbar-thumb {
+    background-color: #38bdf8 !important;
+    border-radius: 4px !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
