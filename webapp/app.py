@@ -11,6 +11,8 @@ import streamlit as st
 from pathlib import Path
 import pandas as pd
 import joblib
+from urllib.request import urlretrieve
+import requests
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -241,9 +243,38 @@ elif model_choice == "Model 4: NLP (Text Classification)":
 
     @st.cache_resource
     def load_model4():
-        model_dir = PROJECT_ROOT / "models" / "model4_nlp_classification" / "saved_model"
-        model = joblib.load(model_dir / "model.joblib")
-        vectorizer = joblib.load(model_dir / "tfidf_vectorizer.joblib")
+        
+        #for local load
+        #model_dir = PROJECT_ROOT / "models" / "model4_nlp_classification" / "saved_model"
+        #model = joblib.load(model_dir / "model.joblib")
+        #vectorizer = joblib.load(model_dir / "tfidf_vectorizer.joblib")
+        #return model, vectorizer
+
+        model_url = "https://huggingface.co/jfranklingoff/Capstone-Project-NLP-Models/resolve/main/model4_nlp_model.joblib"
+        vectorizer_url = "https://huggingface.co/jfranklingoff/Capstone-Project-NLP-Models/resolve/main/model4_tfidf_vectorizer.joblib"
+
+        model_path = Path("model4_nlp_model.joblib")
+        vectorizer_path = Path("model4_tfidf_vectorizer.joblib")
+
+        # Download model if missing
+        if not model_path.exists():
+            response = requests.get(model_url)
+            response.raise_for_status()
+
+            with open(model_path, "wb") as f:
+                f.write(response.content)
+
+        # Download vectorizer if missing
+        if not vectorizer_path.exists():
+            response = requests.get(vectorizer_url)
+            response.raise_for_status()
+
+            with open(vectorizer_path, "wb") as f:
+                f.write(response.content)
+
+        model = joblib.load(model_path)
+        vectorizer = joblib.load(vectorizer_path)
+
         return model, vectorizer
 
     model, vectorizer = load_model4()
@@ -265,9 +296,18 @@ elif model_choice == "Model 5: XGBoost":
     @st.cache_resource
     def load_model5():
         
-        PROJECT_ROOT = Path(__file__).resolve().parents[1]
-        model_path = PROJECT_ROOT / "models" / "model5_innovation" / "saved_model" / "model.joblib"
-        return joblib.load(model_path)
+        #for local/github loading
+        #PROJECT_ROOT = Path(__file__).resolve().parents[1]
+        #model_path = PROJECT_ROOT / "models" / "model5_innovation" / "saved_model" / "model.joblib"
+        #return joblib.load(model_path)
+
+        model_url = "https://huggingface.co/jfranklingoff/Capstone-Project-XGBoost/resolve/main/model5_xgboost_model.joblib"
+        local_model_path = "model5_xgboost_model.joblib"
+
+        urlretrieve(model_url, local_model_path)
+
+        return joblib.load(local_model_path)
+
 
     #load model 5
     model = load_model5()

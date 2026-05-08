@@ -9,6 +9,7 @@ data/processed/*.json
 data/processed/*.parquet
 *.zip
 *.tar.gz
+webapp/*.joblib
 
 # Image datasets
 data/raw/images/
