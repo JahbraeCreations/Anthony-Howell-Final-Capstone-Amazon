@@ -2,11 +2,14 @@
 data/raw/*.csv
 data/raw/*.json
 data/raw/*.parquet
+data/raw/healthcare_csvs/*.csv
+data/raw/retinal_scan_images/*.png
 data/processed/*.csv
 data/processed/*.json
 data/processed/*.parquet
 *.zip
 *.tar.gz
+webapp/*.joblib
 
 # Image datasets
 data/raw/images/
