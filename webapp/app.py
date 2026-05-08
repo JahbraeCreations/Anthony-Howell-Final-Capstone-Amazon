@@ -1974,13 +1974,13 @@ def page_home() -> None:
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;">
         <div style="font-size:2rem;">💊</div>
         <div>
-          <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;line-height:1;">180k+</div>
+          <div style="font-size:1.6rem;font-weight:700;color:#e2e8f0;line-height:1;">192,482</div>
           <div style="color:#64748b;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px;">Drug Reviews</div>
         </div>
       </div>
       <div style="margin-bottom:7px;">
         <div style="color:#94a3b8;font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">3-Class Distribution</div>
-        <div style="color:#5eead4;font-size:0.95rem;font-weight:600;">35% / 42% / 23%</div>
+        <div style="color:#5eead4;font-size:0.95rem;font-weight:600;">48.7% / 33.5% / 17.8%</div>
       </div>
       <div style="margin-bottom:3px;">
         <div style="background:rgba(71,85,105,0.3);border-radius:4px;height:5px;overflow:hidden;">
@@ -2148,14 +2148,14 @@ def page_home() -> None:
         <div style="font-size:3rem;text-align:center;margin-bottom:16px;">💬</div>
         <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.2);
                     border-radius:8px;padding:6px 12px;font-size:0.7rem;font-weight:600;
-                    color:#22d3ee;letter-spacing:0.5px;margin-bottom:12px;text-align:center;">MODEL 4 · BI-LSTM + METADATA</div>
+                    color:#22d3ee;letter-spacing:0.5px;margin-bottom:12px;text-align:center;">MODEL 4 · BioBERT (LoRA) + LSTM</div>
         <h3 style="color:#e2e8f0;font-size:1.1rem;font-weight:600;margin-bottom:12px;text-align:center;">Medication Sentiment Analysis</h3>
         <p style="color:#94a3b8;font-size:0.85rem;line-height:1.5;margin-bottom:16px;">
           Classifies patient drug reviews into effectiveness categories using natural language processing.
         </p>
         <div style="background:rgba(30,41,59,0.4);border-radius:8px;padding:12px;margin-bottom:12px;">
           <div style="color:#64748b;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">ARCHITECTURE</div>
-          <div style="color:#5eead4;font-size:0.85rem;font-weight:600;">Bi-LSTM (2 layers)</div>
+          <div style="color:#5eead4;font-size:0.85rem;font-weight:600;">BioBERT (LoRA) &amp; LSTM</div>
           <div style="color:#94a3b8;font-size:0.75rem;margin-top:2px;">10K vocab · Metadata embeddings · 3-class output</div>
         </div>
         <div style="background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.15);border-radius:8px;padding:12px;">
@@ -2465,23 +2465,23 @@ def page_home() -> None:
           </h3>
           <div style="background:rgba(30,41,59,0.4);border-radius:12px;padding:20px;margin-bottom:16px;">
             <div style="color:#94a3b8;font-size:0.75rem;font-weight:600;text-transform:uppercase;
-                        letter-spacing:0.5px;margin-bottom:8px;">SENSITIVITY (DR DETECTION)</div>
+                        letter-spacing:0.5px;margin-bottom:8px;">ACCURACY</div>
             <div style="font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#22d3ee 0%,#5eead4 100%);
                         -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px;">
-              85.23%
+              97.0%
             </div>
             <div style="background:rgba(71,85,105,0.3);border-radius:8px;height:8px;overflow:hidden;">
               <div style="background:linear-gradient(90deg,#22d3ee 0%,#5eead4 100%);height:100%;
-                          width:85.23%;transition:width 1s ease;"></div>
+                          width:97%;transition:width 1s ease;"></div>
             </div>
           </div>
           <div style="background:rgba(30,41,59,0.4);border-radius:12px;padding:16px;margin-bottom:16px;">
             <div style="color:#94a3b8;font-size:0.7rem;font-weight:600;text-transform:uppercase;
-                        letter-spacing:0.5px;margin-bottom:6px;">SPECIFICITY (NO DR)</div>
-            <div style="font-size:1.5rem;font-weight:600;color:#e2e8f0;margin-bottom:8px;">91.30%</div>
+                        letter-spacing:0.5px;margin-bottom:6px;">AUC-ROC</div>
+            <div style="font-size:1.5rem;font-weight:600;color:#e2e8f0;margin-bottom:8px;">0.994</div>
             <div style="background:rgba(71,85,105,0.3);border-radius:6px;height:6px;overflow:hidden;">
               <div style="background:linear-gradient(90deg,#22d3ee 0%,#5eead4 100%);height:100%;
-                          width:91.3%;transition:width 1s ease;"></div>
+                          width:99.4%;transition:width 1s ease;"></div>
             </div>
           </div>
           <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);
@@ -2510,7 +2510,7 @@ def page_home() -> None:
                       border:1px solid rgba(34,211,238,0.2);border-radius:8px;
                       padding:6px 12px;font-size:0.75rem;font-weight:600;
                       color:#22d3ee;letter-spacing:0.5px;margin-bottom:16px;">
-            M4 &bull; META LSTM + METADATA
+            M4 &bull; BioBERT (LoRA) + LSTM
           </div>
           <h3 style="margin:0 0 24px 0;font-size:1.25rem;font-weight:600;color:#e2e8f0;">
             NLP Notes &middot; Sentiment Analysis
@@ -2520,20 +2520,20 @@ def page_home() -> None:
                         letter-spacing:0.5px;margin-bottom:8px;">WEIGHTED F1-SCORE</div>
             <div style="font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#22d3ee 0%,#5eead4 100%);
                         -webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px;">
-              0.7240
+              0.9018
             </div>
             <div style="background:rgba(71,85,105,0.3);border-radius:8px;height:8px;overflow:hidden;">
               <div style="background:linear-gradient(90deg,#22d3ee 0%,#5eead4 100%);height:100%;
-                          width:72.4%;transition:width 1s ease;"></div>
+                          width:90.18%;transition:width 1s ease;"></div>
             </div>
           </div>
           <div style="background:rgba(30,41,59,0.4);border-radius:12px;padding:16px;margin-bottom:16px;">
             <div style="color:#94a3b8;font-size:0.7rem;font-weight:600;text-transform:uppercase;
                         letter-spacing:0.5px;margin-bottom:6px;">3-CLASS ACCURACY</div>
-            <div style="font-size:1.5rem;font-weight:600;color:#e2e8f0;margin-bottom:8px;">72.4%</div>
+            <div style="font-size:1.5rem;font-weight:600;color:#e2e8f0;margin-bottom:8px;">90.0%</div>
             <div style="background:rgba(71,85,105,0.3);border-radius:6px;height:6px;overflow:hidden;">
               <div style="background:linear-gradient(90deg,#22d3ee 0%,#5eead4 100%);height:100%;
-                          width:72.4%;transition:width 1s ease;"></div>
+                          width:90%;transition:width 1s ease;"></div>
             </div>
           </div>
           <div style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);
@@ -2541,7 +2541,7 @@ def page_home() -> None:
             <div style="color:#64748b;font-size:0.7rem;font-weight:600;text-transform:uppercase;
                         letter-spacing:0.5px;margin-bottom:8px;">ARCHITECTURE</div>
             <div style="color:#5eead4;font-size:0.95rem;font-weight:600;margin-bottom:4px;">
-              Bi-LSTM (2 layers)
+              BioBERT (LoRA) &amp; LSTM
             </div>
             <div style="color:#94a3b8;font-size:0.85rem;">
               10K vocab &middot; Metadata embeddings
@@ -3435,7 +3435,7 @@ def page_predict() -> None:
         </div>""", unsafe_allow_html=True)
         st.markdown(f"""
         <div class="gcard">
-            <span class="tag">M4 · META LSTM + METADATA</span>
+            <span class="tag">M4 · BioBERT (LoRA) + LSTM</span>
             <h3>Clinical Sentiment Analysis</h3>
             <div class="{r4['css']}" style="margin:1rem 0; padding:15px; font-size:1.1rem; border-radius:10px; text-align:center; font-weight:700;">
                 {r4['label']}
@@ -4496,7 +4496,7 @@ def page_insights() -> None:
         st.markdown("""
         <div class="gcard" style="margin-bottom: 2rem; border-color: rgba(245,158,11,0.3);">
           <span class="tag" style="background: rgba(245,158,11,0.1); color: #f59e0b;">MULTIMODAL EXPANSION</span>
-          <h3 style="margin: 0.5rem 0;">Meta LSTM Clinical Sentiment Analysis</h3>
+          <h3 style="margin: 0.5rem 0;">BioBERT (LoRA) &amp; LSTM Clinical Sentiment Analysis</h3>
           <p style="color: #94a3b8; font-size: 0.9rem;">
             Structured EHR data often misses critical nuance hidden in physician progress notes. 
             Model 4 utilizes a PyTorch MetaLSTMClassifier to extract linguistic risk markers 
