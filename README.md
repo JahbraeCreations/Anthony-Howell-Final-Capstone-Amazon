@@ -1,227 +1,161 @@
-# Final Capstone Project — AI Consulting Team
+# 👁️ ClearSight Analytics
 
-## Project Structure
+> **Multimodal Clinical Decision Support System (CDSS) for Diabetic Care Management**
 
-```
-├── data/                          # Your datasets (DO NOT commit large files)
-│   ├── raw/                       # Original, unmodified data
-│   └── processed/                 # Cleaned, feature-engineered data
-│
-├── models/                        # One folder per model — keep it clean
-│   ├── model1_traditional_ml/     # Traditional ML (e.g., XGBoost, Random Forest)
-│   │   ├── train.py               # Training script
-│   │   ├── predict.py             # Prediction script (loads saved model, outputs CSV)
-│   │   └── saved_model/           # Serialized model files (.joblib, .pkl)
-│   │
-│   ├── model2_deep_learning/      # Deep Neural Network (TensorFlow/Keras)
-│   │   ├── train.py
-│   │   ├── predict.py
-│   │   └── saved_model/
-│   │
-│   ├── model3_cnn/                # Convolutional Neural Network (image classification)
-│   │   ├── train.py
-│   │   ├── predict.py
-│   │   └── saved_model/
-│   │
-│   ├── model4_nlp_classification/ # NLP text classification
-│   │   ├── train.py
-│   │   ├── predict.py
-│   │   └── saved_model/
-│   │
-│   └── model5_innovation/         # Your team's innovation model
-│       ├── train.py
-│       ├── predict.py
-│       └── saved_model/
-│
-├── notebooks/                     # EDA, experimentation, prototyping ONLY
-│
-├── pipelines/                     # Data preprocessing & feature engineering
-│   └── data_pipeline.py           # Shared data loading and cleaning functions
-│
-├── webapp/                        # Your deployed Streamlit web application
-│   └── app.py                     # Main application (streamlit run webapp/app.py)
-│
-├── test_data/                     # Instructor test data goes here (DO NOT MODIFY)
-│
-├── output_templates/              # REQUIRED output format for each model
-│   ├── model1_results_template.csv
-│   ├── model2_results_template.csv
-│   ├── model3_results_template.csv
-│   ├── model4_results_template.csv
-│   └── model5_results_template.csv
-│
-├── bulk_test.py                   # Test script for all models (--model N or --all)
-├── requirements.txt               # All dependencies (pip install -r requirements.txt)
-├── weekly-sprint-template.md      # Template for weekly check-ins (submit via Slack)
-├── .gitignore                     # Ignore large files, data, model weights
-└── README.md                      # This file — update with your project details
-```
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.32%2B-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![XGBoost](https://img.shields.io/badge/XGBoost-Ensemble-red)](https://xgboost.readthedocs.io/)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15-FF6F00?logo=tensorflow&logoColor=white)](https://www.tensorflow.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-LSTM-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Groq](https://img.shields.io/badge/Groq-Llama_3.1-f59e0b)](https://groq.com/)
+[![License](https://img.shields.io/badge/License-Academic-lightgrey)](LICENSE)
 
-### What Each Folder Is For
+**ClearSight Analytics** is a high-fidelity multimodal AI platform designed to assist healthcare professionals in high-stakes clinical decision-making. It combines traditional machine learning, deep learning, computer vision, NLP, and generative AI to provide a 360-degree risk assessment of diabetic patients — from hospital readmission probability to retinal complication screening.
 
-| Folder | What Goes Here | Who Uses It |
-|--------|---------------|-------------|
-| `data/raw/` | Original CSV files and images downloaded from the shared Google Drive link. Do not modify these files. | Everyone |
-| `data/processed/` | Cleaned, transformed, feature-engineered versions of the raw data. This is what your models actually train on. | Data Engineering Lead |
-| `models/model1_*/` through `model5_*/` | Each model gets its own folder. `train.py` trains the model, `predict.py` loads and runs it, `saved_model/` stores the trained weights. | Each model's lead owner |
-| `notebooks/` | Jupyter notebooks for exploratory data analysis (EDA) and experimentation. Notebooks are for exploration only — final code goes in `.py` files. | Everyone |
-| `pipelines/data_pipeline.py` | Shared functions that all models use — data loading, cleaning, feature engineering, train/test splitting. Write it once, import everywhere. | Data Engineering Lead |
-| `webapp/` | Your deployed Streamlit web app that integrates all 5 models. Run with `streamlit run webapp/app.py`. Deploy to [Streamlit Community Cloud](https://streamlit.io/cloud) for free. | Everyone (shared responsibility) |
-| `test_data/` | **Do not touch.** The instructor will place test data here during evaluation. Your `predict.py` scripts read from this folder. | Instructor only |
-| `output_templates/` | Example CSVs showing the **exact** output format each model must produce. Open these and match them precisely. | Reference — do not modify |
+> ⚠️ **This is an academic Capstone Project.** It is not a certified medical device and must not be used for real clinical diagnosis.
 
 ---
 
-## Critical Rules
+## ✨ Key Features
 
-### 1. Output Format is Non-Negotiable
-
-Each model's `predict.py` must output a CSV that **exactly matches** the template in `output_templates/`. Same column names. Same data types. Same order. No exceptions.
-
-Your evaluation script will fail if your output doesn't match. This is intentional — in the real world, your client's systems expect data in a specific format.
-
-### Output Format Reference
-
-Each model has a different output CSV format. Use this table as a quick reference — your `predict.py` must produce columns that **exactly match** these.
-
-| Model | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 |
-|-------|----------|----------|----------|----------|----------|
-| **Model 1** (Traditional ML) | `id` | `prediction` | `probability` | `confidence` | — |
-| **Model 2** (Deep Learning) | `id` | `prediction` | `probability` | `confidence` | — |
-| **Model 3** (CNN) | `image_id` | `predicted_class` | `confidence` | — | — |
-| **Model 4** (NLP) | `id` | `predicted_class` | `confidence` | — | — |
-| **Model 5** (Innovation) | `id` | `prediction` | `confidence` | `metric_name` | `metric_value` |
-
-**Key differences to watch for:**
-- **Model 3 uses `image_id`**, not `id` — because predictions correspond to image files (e.g., `img_0001.png`), not numeric record IDs.
-- **Models 3 and 4 use `predicted_class`**, not `prediction` — because they output categorical class labels rather than binary/numeric predictions.
-- **Model 5 includes extra columns** (`metric_name`, `metric_value`) for your custom evaluation metric.
-- **Models 1 and 2 include `probability`** (the raw model output probability) in addition to `confidence`.
-
-**Note:** The example values in the templates are illustrative. Use your scenario's actual class labels (e.g., severity 1-4 for smart city, 0/1 for healthcare binary predictions, actual category names for NLP).
-
-Always check `output_templates/` for the authoritative format. If your output doesn't match, you will lose 5 points per model.
-
-### 2. No Notebooks as Final Deliverables
-
-Notebooks are for exploration. Your final model code must be in `.py` files inside the `models/` directory. Models submitted only as notebooks will receive a **-5 point deduction**.
-
-### 3. Models Must Be Saved and Loadable
-
-Your `predict.py` scripts must:
-- Load a pre-trained model from `saved_model/`
-- Accept test data as input
-- Output predictions to `test_data/modelN_results.csv`
-
-Do NOT retrain during prediction. If your model requires retraining to make predictions, it's not production-ready.
-
-### 4. File Naming Conventions
-
-- Use `snake_case` for all file and folder names
-- Model artifacts: `model_name.joblib`, `model_name.h5`, `model_name.keras`
-- No spaces in file names. Ever.
-- No duplicate versions (`model_v2_final_FINAL.py` — don't do this)
-
-### 5. Data Stays Out of Git
-
-Large data files and model weights should NOT be committed to git. Use `.gitignore`. Your `data/raw/` folder should contain only a README explaining where to get the data.
+- **5 Specialized AI Models** running in parallel on a single inference request
+- **Grad-CAM Explainability** — visual heatmaps highlighting pathological retinal regions
+- **AI Clinical Copilot** — context-aware LLM (Llama 3.1) that injects live patient metrics into every prompt
+- **Quick Load Presets** — 5 pre-built clinical scenarios for rapid demo and testing
+- **EHR Export** — one-click Markdown clinical summary ready for copy-paste into medical records
+- **Clinical Safety Guardrails** — mandatory disclaimers, `temperature=0.2` lock, and OOD warnings on all AI outputs
 
 ---
 
-## How Your Models Will Be Evaluated
+## 🏛️ System Architecture
 
-1. I will place test data in your `test_data/` folder
-2. I will run `python bulk_test.py --all`
-3. The script calls each model's `predict.py` with the test data
-4. Your predictions are compared against ground truth I hold back
-5. Metrics are calculated automatically
-6. **If your script crashes, that model scores 0**
+The platform operates on a **Consensus Inference Engine**, integrating five specialized models:
 
-### What "Runs" Means
+### Tier 1 — Predictive Risk (M1 & M2)
+| Model | Type | Task |
+|-------|------|------|
+| **M1** | XGBoost Ensemble | 30-day readmission risk from structured EHR data |
+| **M2** | Keras DNN | Parallel readmission probability for consensus scoring |
+
+### Tier 2 — Computer Vision (M3)
+| Model | Type | Task |
+|-------|------|------|
+| **M3** | ResNet50 CNN | Diabetic Retinopathy screening from fundus photographs |
+| **Grad-CAM** | Explainable AI | Activation heatmaps over hemorrhages, exudates, and microaneurysms |
+
+### Tier 3 — NLP & Operations (M4 & M5)
+| Model | Type | Task |
+|-------|------|------|
+| **M4** | Meta LSTM (PyTorch) | Clinical note sentiment + qualitative risk signal detection |
+| **M5** | Capacity Classifier | Length of Stay (LOS) prediction for bed management |
+
+### Tier 4 — Generative AI Copilot
+Powered by **Llama 3.1-8b-instant via Groq API** for sub-second latency. Dynamically injects live patient metrics and all five model outputs into the LLM context to generate personalized discharge protocols, risk driver rankings, and clinical syntheses.
+
+---
+
+## 🛡️ Clinical Safety & Ethics
+
+| Guardrail | Implementation |
+|-----------|---------------|
+| **Hallucination control** | All generative outputs locked at `temperature: 0.2` |
+| **Mandatory disclaimers** | Every AI response enforced with a `CRITICAL RULE` system instruction |
+| **OOD detection UX** | Explicit warning on retinal uploader for non-fundus images |
+| **No definitive diagnosis** | CDSS system prompt explicitly prohibits diagnostic conclusions |
+| **Audit trail** | All prediction events logged via Python `logging` module |
+
+---
+
+## 📂 Project Structure
+
+```
+final-capstone-clearsight-analytics/
+├── webapp/
+│   └── app.py                    # Main Streamlit application (~5 000 lines)
+├── models/
+│   ├── model1_traditional_ml/    # XGBoost readmission ensemble
+│   ├── model2_deep_learning/     # Keras DNN readmission model
+│   ├── model3_cnn/               # ResNet50 retinal screening + Grad-CAM
+│   ├── model4_nlp_classification/# Meta LSTM clinical note analysis
+│   └── model5_innovation/        # LOS / capacity planning classifier
+├── pipelines/                    # Data cleaning & feature engineering
+├── notebooks/                    # EDA notebooks per team member
+├── data/processed/               # Processed datasets (gitignored)
+├── output_templates/             # Per-model result CSV templates
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## ⚙️ Installation & Deployment
+
+### Prerequisites
+- Python 3.10+
+- A free [Groq API key](https://console.groq.com/) (for the AI Copilot)
+
+### Setup
 
 ```bash
-pip install -r requirements.txt    # Must work without errors
-python bulk_test.py --all          # Must produce test_data/model{1-5}_results.csv
+# 1. Clone
+git clone https://github.com/fsa-aiml-2511/final-capstone-clearsight-analytics.git
+cd final-capstone-clearsight-analytics
+
+# 2. Create and activate virtual environment
+python -m venv venv
+
+# macOS / Linux
+source venv/bin/activate
+
+# Windows (PowerShell)
+venv\Scripts\Activate.ps1
+
+# 3. Install dependencies
+pip install -r requirements.txt
 ```
 
-No manual steps. No "you need to run this notebook first." No "change this path." It either runs or it doesn't.
+### Secrets Configuration
+
+Create `.streamlit/secrets.toml`:
+
+```toml
+GROQ_API_KEY = "gsk_your_key_here"
+```
+
+### Run
+
+```bash
+streamlit run webapp/app.py
+```
+
+Navigate to `http://localhost:8501` in your browser.
 
 ---
 
-## Required Models (5 Total)
+## 🛠️ Technical Stack
 
-| # | Model Type | What You Build | Key Metric |
-|---|-----------|----------------|------------|
-| 1 | **Traditional ML** | Classical ML algorithm (XGBoost, Random Forest, etc.) | See scenario spec |
-| 2 | **Deep Learning** | Neural network on tabular/structured data (TensorFlow/Keras) | See scenario spec |
-| 3 | **CNN** | Image classification with convolutional neural network | See scenario spec |
-| 4 | **NLP Classification** | Text classification using NLP techniques | See scenario spec |
-| 5 | **Innovation** | Your team's choice — surprise us | Your defined metric |
-
----
-
-## Team Members
-
-| Role | Name | GitHub Username |
-|------|------|-----------------|
-| Data Engineering Lead | | |
-| ML / DNN Lead | | |
-| CNN Lead | | |
-| NLP Lead | | |
+| Layer | Technology |
+|-------|-----------|
+| UI Framework | Streamlit 1.32+ with custom glassmorphism CSS |
+| ML — Tabular | XGBoost, scikit-learn, joblib |
+| ML — Deep Learning | TensorFlow / Keras 2.15 |
+| ML — Computer Vision | PyTorch, torchvision (ResNet50), OpenCV |
+| ML — NLP | PyTorch LSTM, custom tokenizer |
+| Generative AI | Llama 3.1 via Groq API (OpenAI-compatible client) |
+| Data Processing | pandas, NumPy, scikit-learn pipelines |
+| Explainability | Grad-CAM (manual implementation, no third-party lib) |
 
 ---
 
-## Getting Started
+## 👥 Team
 
-1. **Read your scenario spec** — understand the business problem and datasets
-2. **Read `preprocessing_hints.py` carefully** — this file is in your scenario folder (healthcare/ or smart_city/), not in this repo. It contains critical data preparation steps including target variable creation, category mapping, and class imbalance warnings. Skipping this will cost you significant points.
-3. **Explore the data** — use `notebooks/eda.ipynb` to understand what you're working with
-4. **Build your data pipeline** — `pipelines/data_pipeline.py` for shared preprocessing
-5. **Develop models** — one team member leads each, everyone contributes
-6. **Test your outputs** — make sure they match the templates BEFORE submission
-7. **Build the web app** — integrate all models into a single interface
-8. **Deploy** — deploy to [Streamlit Community Cloud](https://streamlit.io/cloud) (free). Push your repo to GitHub, connect it to Streamlit Cloud, and your app gets a public URL
+| Role | Name | GitHub |
+|------|------|--------|
+| **ML / DNN Lead** | Francisco Molina | [@Frankmo89](https://github.com/Frankmo89) |
+| **NLP Lead** | Wesley Houk | [@wesleyhouk](https://github.com/wesleyhouk) |
+| **CNN / CV Lead** | Doug Bacon | [@Cooley5632] |
+| **Data Engineering** | Francisco Molina | [@Frankmo89](https://github.com/Frankmo89) |
 
 ---
 
-## Team Roles
-
-| Role | Primary Responsibility | Models |
-|------|----------------------|--------|
-| **Data Engineering Lead** | Data cleaning, feature engineering, pipelines | Supports all |
-| **ML / DNN Lead** | Traditional ML + Deep Learning models | Model 1 & 2 |
-| **CNN Lead** | Image classification, computer vision | Model 3 |
-| **NLP Lead** | Text classification | Model 4 |
-
-**Model 5 (Innovation)** is a shared team responsibility. **Everyone** contributes to the web app and presentation.
-
----
-
-## Weekly Sprint Check-Ins
-
-Every week, your team must submit a **sprint check-in** via Slack before your weekly meeting with the instructor. Use the `weekly-sprint-template.md` included in this repo.
-
-This includes:
-- What you accomplished that week
-- What you're working on next
-- Any blockers or challenges
-- Updated model status tracker
-
-These check-ins are part of your **Collaboration & Process** grade. Consistent, honest updates show professionalism. Silence until demo day does not.
-
----
-
-## Submission Checklist
-
-Before your final push, verify:
-
-- [ ] `pip install -r requirements.txt` works cleanly
-- [ ] `python bulk_test.py --all` runs without errors
-- [ ] All 5 `test_data/modelN_results.csv` files are generated
-- [ ] Output CSVs match the templates exactly (column names, types)
-- [ ] No hardcoded absolute paths (use relative paths or config)
-- [ ] No data leakage between train/test splits
-- [ ] Models load from saved files (no retraining during prediction)
-- [ ] Web app runs locally with `streamlit run webapp/app.py`
-- [ ] README updated with your project-specific details
-- [ ] `.gitignore` excludes large data and model files
+*⚠️ **Disclaimer:** This software is an academic Capstone Project for demonstration purposes only. It is not a certified medical device and should not be used for actual clinical diagnosis.*
